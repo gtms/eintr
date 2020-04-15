@@ -4,6 +4,7 @@
 Lisp stands for “Lots of Isolated Silly Parentheses”.  Or, more prosaically,
 “LISt Processing”.  Lists are contained within parentheses.  Lists are the basis
 of Lisp.
+
 ** Lisp Lists
 This is a Lisp list:
 #+begin_src emacs-lisp
@@ -146,20 +147,253 @@ evaluated (if any), up to the outermost list:
 #+RESULTS:
 : 8
 
-** TODO Variables
+** Variables
+In Emacs Lisp, a symbol can have a value attached to it just as it can have a
+function definition attached to it.  The value of a symbol can be any expression
+in Lisp, such as a symbol, number, list of string.  A symbol that has a value is
+often called a “variable”.  A symbol can have both a function definition and a
+value attached to it at the same time.
+
 *** fill-column example
+In order to find the value attached to a variable, one needs to evaluate its
+symbol:
+
+#+begin_src emacs-lisp
+fill-column
+#+end_src
+
+#+RESULTS:
+: 80
+
 *** Void Function
+Note that, in the previous example, the symbol ‘fill-column’ was evaluated by
+itself, and not within the context of a list.  This is because if it were
+evaluated within a list, the Lisp interpreter would attempt to find the function
+definition attached to it, when ‘fill-column’ has no function definition:
+
+#+begin_src emacs-lisp
+(fill-column)
+#+end_src
+
+This expression will generate a *Backtrace* buffer stating that the symbol
+‘fill-column’ is a “void function”.
+
 *** Void Variable
-** TODO Arguments
+In addition, evaluating a symbol that does not have a value bound to it also
+generates an error message.  For instance, in the following expression:
+
+#+begin_src emacs-lisp
+(+ 2 2)
+#+end_src
+
+running the command ‘eval-last-sexp’ (‘C-x C-e’), with the cursor right after
+the ‘+’, will generate a *Backtrace* buffer stating that the symbol ‘+’ is a
+“void variable”.  This is because the interpreter sought to look for the value
+of a variable, by virtue of the fact that the “last expression” evaluated was
+the symbol ‘+’, and not a list in which the first element would then be
+interpreted as a function definition.
+
+** Arguments
+In Lisp, the arguments to a function are the atoms or lists that follow the
+function.  The values returned by the evaluation of these atoms or lists are
+passed to the function.  Different functions require different numbers of
+arguments; some functions require none at all.
+
 *** Data types
-*** Args as Variable or List
+The type of data that should be passed to a function depends on what kind of
+information it uses.  For example, the ‘concat’ function links together two or
+more strings of text to produce a string.  The arguments are strings:
+
+#+begin_src emacs-lisp
+  (concat "abc" "def")
+#+end_src
+
+#+RESULTS:
+: abcdef
+
+The function ‘substring’ takes two types of arguments, a string and up to two
+numbers that delimit the substring to return:
+
+#+begin_src emacs-lisp
+  (substring "The quick brown fox jumped." 16 19)
+#+end_src
+
+#+RESULTS:
+: fox
+
+Note that the string passed to ‘substring’ is a single atom even though it is
+made up of several words separated by spaces.
+
+*** An Argument as the Value of a Variable or List
+An argument can be a symbol that returns a value when it is evaluated.  For
+example, when the symbol ‘fill-column’ by itself is evaluated, it returns a
+number.  This number can be used in an addition:
+
+#+begin_src emacs-lisp
+  (+ 2 fill-column)
+#+end_src
+
+#+RESULTS:
+: 82
+
+In addition, an argument can be a list that returns a value when it is
+evaluated:
+
+#+begin_src emacs-lisp
+  (concat "The " (number-to-string (+ 2 fill-column)) " red foxes.")
+#+end_src
+
+#+RESULTS:
+: The 82 red foxes.
+
 *** Variable Number of Arguments
+Some functions, such as ‘concat’, ‘+’ or ‘*’, take any number of arguments:
+
+#+begin_src emacs-lisp
+  (+) ; 0
+  (*) ; 1
+  (+ 3) ; 3
+  (* 3) ; 3
+  (+ 3 4 5) ; 12
+  (* 3 4 5) ; 60
+#+end_src
+
 *** Wrong Type of Argument
+When a function is passed  an argument of the wrong type, the Lisp interpreter
+produces an error message.  For instance, the following example:
+
+#+begin_src emacs-lisp
+  (+ 2 'hello)
+#+end_src
+
+will produce a *Backtrace* buffer stating that the argument is of the wrong
+type.  More specifically, the debugger message implies that the symbol passed as
+argument (the quoted symbol ‘hello’) failed the “number or marker” test (a
+marker is a special object representing a buffer position).
+
+The ‘p’ of ‘number-or-marker-p’ stands for “predicate”.  A predicate is a
+function to determine if some property is true or false.  Other Lisp symbols
+that end in ‘p’ include ‘zerop’, a function that tests whether its argument has
+the value of zero, and ‘listp’, a function that tests whether its argument is a
+list.
+
 *** The ‘message’ function
-** TODO set & setq
+The ‘message’ function takes a variable number of arguments and is used to post
+messages in the echo aread to the user:
+
+#+begin_src emacs-lisp
+  (message "This message appears in the echo area!")
+#+end_src
+
+#+RESULTS:
+: This message appears in the echo area!
+
+The format control strings ‘%s’ and ‘%d’ in the quoted string of characters are
+replaced in the returned message respectively by string and integer arguments,
+in the order that they appear in the argument list passed to the function:
+
+#+begin_src emacs-lisp
+  (message "The name of this buffer is: %s." (buffer-name))
+#+end_src
+
+#+RESULTS:
+: The name of this buffer is: eintr.org.
+
+#+begin_src emacs-lisp
+  (message "The value of fill-column is: %d." fill-column)
+#+end_src
+
+#+RESULTS:
+: The value of fill-column is: 80.
+
+Here are two more complex examples:
+
+#+begin_src emacs-lisp
+  (message "There are %d %s in the office!"
+           (- fill-column 14) "pink elephants")
+#+end_src
+
+#+RESULTS:
+: There are 66 pink elephants in the office!
+
+#+begin_src emacs-lisp
+  (message "He saw %d %s"
+           (- fill-column 32)
+           (concat "red "
+                   (substring
+                    "The quick brown foxes jumped." 16 21)
+                   " leaping."))
+#+end_src
+
+#+RESULTS:
+: He saw 48 red foxes leaping.
+
+** set & setq
+One way by which to “bind” a variable to a value is to use either the function
+‘set’ or the function ‘setq’.  Another way is to use the special form ‘let’.
+
 *** Using set
+When evaluated, the following expression will set the value of the symbol
+‘flowers’ to the list ‘'(rose violet daisy buttercup)’:
+
+#+begin_src emacs-lisp
+  (set 'flowers '(rose violet daisy buttercup))
+#+end_src
+
+#+RESULTS:
+| rose | violet | daisy | buttercup |
+
+This happens as a side effect of returning the list itself.  Once set,
+evaluating the symbol flowers will return the list it was assigned:
+
+#+begin_src emacs-lisp
+  flowers
+#+end_src
+
+#+RESULTS:
+| rose | violet | daisy | buttercup |
+
+However, evaluating the quoted symbol ‘'flowers’ will return the symbol itself:
+
+#+begin_src emacs-lisp
+  'flowers
+#+end_src
+
+#+RESULTS:
+: flowers
+
 *** Using setq
+The special form ‘setq’ behaves like ‘set’ except that the first argument is
+quoted automatically:
+
+#+begin_src emacs-lisp
+  (setq carnivores '(lion tiger leopard))
+#+end_src
+
+#+RESULTS:
+| lion | tiger | leopard |
+
+In addition, setq allows for the binding of several symbol/value pairs within
+the same expression, by having each even argument bound to the preceding odd
+symbol:
+
+#+begin_src emacs-lisp
+  (setq trees '(pine fir oak maple)
+        herbivores '(gazelle antelope zebra))
+#+end_src
+
+#+RESULTS:
+| gazelle | antelope | zebra |
+
 *** Counting
+Here is an example that shows how to use ‘setq’ in a counter:
+
+#+begin_src emacs-lisp
+  (setq counter 0)                      ; The initializer
+  (setq counter (+ counter 1))          ; The incrementer
+  counter                               ; The counter
+#+end_src
+
 ** Summary
 + Lisp programs are made up of expressions, which are lists or single atoms.
 
@@ -193,6 +427,37 @@ evaluated (if any), up to the outermost list:
   In many cases, a function’s primary purpose is to create a side effect.
 
 ** Exercises
+*** Exercise 1.1
+Generate an error message by evaluating an appropriate symbol that is not
+within parentheses.
+
+#+begin_src emacs-lisp
+symbol
+#+end_src
+
+*** Exercise 1.2
+Generate an error message by evaluating an appropriate symbol that is between
+parentheses.
+
+#+begin_src emacs-lisp
+  (fill-column)
+#+end_src
+
+*** Exercise 1.3
+Create a counter that increments by two rather than one.
+
+#+begin_src emacs-lisp
+  (setq counter2 0)
+  (setq counter2 (+ counter2 2))
+  counter2
+#+end_src
+
+*** Exercise 1.4
+Write an expression that prints a message in the echo area when evaluated.
+
+#+begin_src emacs-lisp
+  (message "Exercises from chapter one are completed!")
+#+end_src
 
 * Practicing Evaluation
 
@@ -209,7 +474,6 @@ evaluated (if any), up to the outermost list:
 ** Exercise
 
 * How to Write Function Definitions
-
 ** Primitive Functions
 
 ** defun
@@ -412,7 +676,7 @@ Here is an example:
 
 #+begin_src emacs-lisp
   (if (> 5 4)                           ; if-part
-      (message "Five is greater than four!")) ; then-part
+  (message "Five is greater than four!")) ; then-part
 #+end_src
 
 #+RESULTS:
@@ -466,7 +730,7 @@ Here is an example:
 #+begin_src emacs-lisp
   (if (> 4 5)                        ; if-part
       (message "Four falsely greater than five!") ; then-part
-    (message "Four is not greater than five!"))   ; else-part
+      (message "Four is not greater than five!"))   ; else-part
 #+end_src
 
 #+RESULTS:
@@ -568,7 +832,6 @@ of a ‘let’ expression:
 #+end_src
 
 ** Review
-
 * Buffer Walk Through
 * More Complex
 * Narrowing & Widening
