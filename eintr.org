@@ -51,7 +51,7 @@ In brief, a list is between parentheses, a string is between quotation marks, a
 symbol looks like a word, and a number looks like a number.
 
 ** Run a Program
-The Lisp interpreter will evaluate a list unless it is preceeded by a quote
+The Lisp interpreter will evaluate a list unless it is preceded by a quote
 (‘'’).  If quoted, the list is returned as is:
 
 #+begin_src emacs-lisp
