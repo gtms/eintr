@@ -1,0 +1,576 @@
+#+STARTUP: content
+
+* List Processing
+Lisp stands for “Lots of Isolated Silly Parentheses”.  Or, more prosaically,
+“LISt Processing”.  Lists are contained within parentheses.  Lists are the basis
+of Lisp.
+** Lisp Lists
+This is a Lisp list:
+#+begin_src emacs-lisp
+  '(rose
+    violet
+    daisy
+    buttercup)
+#+end_src
+
+#+RESULTS:
+| rose | violet | daisy | buttercup |
+
+*** Numbers, List inside Lists
+Here is another list, this time with a list inside of it:
+#+begin_src emacs-lisp
+  '(this list has (a list inside of it))
+#+end_src
+
+#+RESULTS:
+| this | list | has | (a list inside of it) |
+
+*** Lisp Atoms
+The empty list, ‘()’, is considered both an atom and a list at the same time.
+“Symbolic expressions” or, more concisely, “s-expressions”, are the printed
+representation of both atoms and lists.  Also, the word “form” can be used as a
+synonym for expression.
+
+Atoms are indivisible semantic units.  Numbers and symbols are examples of
+atoms.  Text betwen double quotation marks (even sentences or paragraphs) is
+also an atom.  Here is an example:
+#+begin_src emacs-lisp
+  '(this list includes "text between quotation marks.")
+#+end_src
+
+#+RESULTS:
+| this | list | includes | text between quotation marks. |
+
+This kind of atom is called a “string” (for “string of characters”).
+
+*** Whitespace in Lists
+The amount of whitespace in a list does not matter.
+
+In brief, a list is between parentheses, a string is between quotation marks, a
+symbol looks like a word, and a number looks like a number.
+
+** Run a Program
+The Lisp interpreter will evaluate a list unless it is preceeded by a quote
+(‘'’).  If quoted, the list is returned as is:
+
+#+begin_src emacs-lisp
+  '(this is a quoted list)
+#+end_src
+
+#+RESULTS:
+| this | is | a | quoted | list |
+
+If unquoted, the interpreter will take the first item of the list as a function
+to execute, with the remaining elements of the list taken as arguments:
+
+#+begin_src emacs-lisp
+  (+ 2 2)
+#+end_src
+
+#+RESULTS:
+: 4
+
+** Making Errors
+Alternatively, if the list is not compliant with the language syntax, an error
+message is returned by the GNU Emacs debugger:
+
+#+begin_src emacs-lisp
+  (this is an unquoted list)
+#+end_src
+
+This instruction will invoke the debugger, which is opened in a buffer named
+*Backtrace*.  To quit the debugger, type ‘q’.  The *Backtrace* shows the series
+of steps that the interpreter took to evaluate the given s-expression, from the
+bottom up.  The last of these messages, at the top of the *Backtrace* buffer,
+conveys the absence of an instruction registered with the symbol ‘this’; in
+other words, there is no function that can be executed by this list.  Thus,
+‘this’ is a ‘void-function’.
+
+** Names & Definitions
+A function may have different symbols associated to it (e.g., ‘+’ anld ‘plus’ both
+can refer to the set of instructions used to add numbers).  Conversely, a symbol
+can have only one function associated to it at a time.
+
+As Emacs only has one namespace, it is customary to name symbols in a way that
+identifies the function with the feature of Emacs it is associated with.  Thus,
+all the names for functions related to Texinfo start with ‘texinfo-’ and those
+for functions that deal with reading mail start with ‘rmail-’.
+
+** Lisp Interpreter
+The Lisp interpreter first looks to see whether there is a quote before the
+list; if there is, the interpreter just returns a list.  If there is no quote,
+the interpreter looks at the first element olf the list and sees whether it has a
+function definition.  If it does, the interpreter carries the instructions in
+the function definition.  Otherwise, the interpreter prints an error message.
+
+*** Complications
+In addition to these case scenarios, the Lisp interpreter can evaluate a symbol
+that is not quoted and does not have parentheses around it.  In this case, the
+interpreter will attempt to determine the symbol’s value as a “variable”.
+
+There is also an exception for unusual functions called “special forms”.  They
+are used for special tasks, like defining a function, and there are not many of
+them.
+
+As well as special forms, there are also “macros”.  A macro is a construct
+defined in Lisp, which differs from a function in that it translates a Lisp
+expression into another expression that is to be evaluated in place of the
+original expression.
+
+The Lisp interpreter evaluates nested lists from the inside out, i.e., first it
+evaluates the innermost list (the result of which can be used in the evaluation
+of the enclosing expression), up to the outermost list.
+
+*** Bite Compiling
+The Lisp interpreter is able to interpret human readable code as well as byte
+compiled code.  Bite compiled code is usually stored in a file with an ‘.elc’
+extension, as opposed to a ‘.el’ extension, reserved for human readable code.
+
+** Evaluation
+“To ascertain the value or amount of; to appraise”, according to ‘Webster’s New
+Collegiate Dictionary’.
+*** TODO How the Interpreter Acts
+*** TODO Evaluating Inner Lists
+** TODO Variables
+*** fill-column example
+*** Void Function
+*** Void Variable
+** TODO Arguments
+*** Data types
+*** Args as Variable or List
+*** Variable Number of Arguments
+*** Wrong Type of Argument
+*** The ‘message’ function
+** TODO set & setq
+*** Using set
+*** Using setq
+*** Counting
+** Summary
++ Lisp programs are made up of expressions, which are lists or single atoms.
+
++ Lists are made up of zero or more atoms or inner lists, separated by
+  whitespace and surrounded by parentheses.  A list can be empty.
+
++ Atoms are multi-character symbols, like ‘forward-paragraph’, single character
+  symbols like ‘+’, strings of characters between double quotation marks, or
+  numbers.
+
++ A number evaluates to itself.
+
++ A string between double quotes evaluates to itself.
+
++ A symbol evaluated by itself returns its value.
+
++ When a list is evaluated, the Lisp interpreter looks at the first symbol in
+  the list and then at the function definition bound to that symbol.  Then the
+  instructions in the function definition are carried out.
+
++ The single quote ‘'’ tells the Lisp interpreter that it should return the
+  following expression as written, and not evaluate it as it would if the quote
+  were not there.
+
++ Arguments are the information passed to a function.  The arguments to a
+  function are computed by evaluating the rest of the elements of the list of
+  which the function is the first element.
+
++ A function always retuns a value when it is evaluated (unless it gets an
+  error); in addition, it may also carry out some action that is a side effect.
+  In many cases, a function’s primary purpose is to create a side effect.
+
+** Exercises
+
+* Practicing Evaluation
+
+** How to Evaluate
+
+** Buffer Names
+
+** Getting Buffers
+
+** Switching Buffers
+
+** Buffer Size & Locations
+
+** Exercise
+
+* How to Write Function Definitions
+
+** Primitive Functions
+
+** defun
+
+** Install a Function Definition
+
+*** Effect of Installation
+
+*** Change a Function Definition
+
+** Make a Function Interactive
+
+*** Interactive multiply-by-seven
+
+*** multiply-by-seven in detail
+In this function, the expression, ‘(interactive "p")’, is a list of two
+elements.  The ‘"p"’ tells Emacs to pass the prefix argument to the function and
+use its value for the argument of the function.
+
+** Different Options for ‘Interactive’
+Consider the function ‘zap-to-char’.  Its interactive expression is (or /was/,
+at the time of the writing of the book):
+
+#+begin_src emacs-lisp
+  (interactive "p\ncZap to char: ")
+#+end_src
+
+The first part of the argument to ‘interactive’ is ‘p’, which tells Emacs to
+interpret a prefix as a number to be passed to the function.  In the context of
+‘zap-to-char’, the prefix is the number of specified characters to delete up
+to.  Thus, if the prefix is three and the specified character is ‘x’, then the
+call to the function will delete all the text up to and include the third next
+‘x’.  Without a prefix, the functions deletes all the text up to and including
+the specified character, but no more.
+
+The ‘c’ tells the function the name of the character to which to delete.
+
+The ‘interactive’ declaration is a special form of ‘C source code’ that
+specifies a way of parsing arguments for interactive use of a function.  The
+argument of ‘interactive’ is a string containing a code letter followed
+optionally by a prompt.  To pass several arguments to the command, concatenate
+the individual strings, separating them by newline characters.
+
+Code letters available are:
+a -- Function name: symbol with a function definition.
+b -- Name of existing buffer.
+B -- Name of buffer, possibly nonexistent.
+c -- Character (no input method is used).
+C -- Command name: symbol with interactive function definition.
+d -- Value of point as number.  Does not do I/O.
+D -- Directory name.
+e -- Parameterized event (i.e., one that’s a list) that invoked this command.
+     If used more than once, the Nth ‘e’ returns the Nth parameterized event.
+     This skips events that are integers or symbols.
+f -- Existing file name.
+F -- Possibly nonexistent file name.
+G -- Possibly nonexistent file name, defaulting to just directory name.
+i -- Ignored, i.e. always nil.  Does not do I/O.
+k -- Key sequence (downcase the last event if needed to get a definition).
+K -- Key sequence to be redefined (do not downcase the last event).
+m -- Value of mark as number.  Does not do I/O.
+M -- Any string.  Inherits the current input method.
+n -- Number read using minibuffer.
+N -- Numeric prefix arg, or if none, do like code ‘n’.
+p -- Prefix arg converted to number.  Does not do I/O.
+P -- Prefix arg in raw form.  Does not do I/O.
+r -- Region: point and mark as 2 numeric args, smallest first.  Does no I/O.
+s -- Any string.  Does not inherit the current input method.
+S -- Any symbol.
+U -- Mouse up event discarded by a previous k or K argument.
+v -- Variable name: symbol that is ‘custom-variable-p’.
+x -- Lisp expression read but not evaluated.
+X -- Lisp expression read and evaluated.
+z -- Coding system.
+Z -- Coding system, nil if no prefix arg.
+
+** Install Code Permanently
+Functions installed through evaluation are purged from memory upon quitting
+Emacs.  In order to have code installed automatically whenever Emacs is started,
+one needs to:
+
++ Write code into the ‘.emacs’ initialization file.  This file is automatically
+  evaluated when Emacs is started and all the functions within it are installed.
+
++ Functions can also be written into one or more files of their own and then
+  loaded via the ‘load’ function.  This causes Emacs to evaluate and thereby
+  install each of the functions in the files.
+
++ For code that an entire site will use, it is customary to write it into a file
+  called ‘site-init.el’ that is loaded when Emacs is built.  This makes the code
+  available for everyone using that machine.
+
+** let
+The ‘let’ expression is a special form in Lisp that is used in most function
+definitions.  ‘let’ is used to attach or bind a symbol within the scope of a function.
+
+*** Prevent confusion
+‘let’ creates a name for a “local variable” that overshadows any use of the same
+name outside the ‘let’ expression.
+
+Local variables created by a ‘let’ expression retain their value /only/ within
+the ‘let’ expression itself (and within expressions called within the ‘let’
+expression); the local variables have no effect outside the ‘let’ expression.
+
+‘let’ is like a ‘setq’ that is temporary and local.  The values set by ‘let’ are
+automatically undone when the ‘let’ is finished.  In Emacs Lisp, scoping is
+dynamic, not lexical.
+
+From the [[https://www.wikiwand.com/en/Scope_(computer_science)#/Lexical_scope_vs._dynamic_scope][Wikipedia]] entry on lexical scope vs. dynamic scope:
+
+#+begin_quote
+In languages with lexical scope (also called static scope), name resolution
+depends on the location in the source code and the lexical context, which is
+defined by where the named variable or function is defined.  In contrast, in
+languages with dynamic scope the name resolution depends upon the program state
+when the name is encountered which is determined by the execution context or
+calling context.  In practice, with lexical scope a variable’s definition is
+resolved by searching its containing block or function, then if that fails
+searching the outer containing block, and so on, whereas with dynamic scope the
+calling function is searched, then the function which called that calling
+function, and so on, progressing up the call stack.
+#+end_quote
+
+*** Parts of let expression
+A ‘let’ expression is a list of three parts.  This first part is the symbol
+‘let’.  The second part is a list, called a “varlist”, each element of which is
+either a symbol by itself or a two-element list, the first element of which is a
+symbol.  The third part of the ‘let’ expression consists of one or more lists.
+
+The following is a template for a ‘let’  expression:
+
+#+begin_src emacs-lisp
+  (let VARLIST BODY...)
+#+end_src
+
+The symbols in the varlist are the variables that are given initial values by
+the ‘let’ special form.  Symbols by themselves are given the initial value of
+‘nil’; and each symbol that is the first element of a two-element list is bound
+to the value that is returned when the Lisp interpreter evaluates the second
+element.
+
+Thus, a varlist might look like this: ‘(thread (needles 3))’.  In this case, in
+a ‘let’ expression, Emacs binds the symbol ‘thread’ to an initial value of
+‘nil’, and binds the symbol ‘needles’ to an initial value of 3.
+
+*** Sample let Expression
+The following expression creates and gives initial values to the two variables
+‘zebra’ and ‘tiger’.  The body of the ‘let’ expression is a list which calls the
+‘message’ function:
+
+#+begin_src emacs-lisp
+  (let ((zebra "stripes")
+        (tiger "fierce"))
+    (message "One kind of animal has %s and another is %s."
+             zebra tiger))
+#+end_src
+
+#+RESULTS:
+: One kind of animal has stripes and another is fierce.
+
+*** Uninitialized let Variables
+If you do not bind the variables of a ‘let’ statement to specific initial
+values, they will automatically be bound to an initial value of ‘nil’, as in the
+following expression:
+
+#+begin_src emacs-lisp
+  (let ((birch 3)
+        pine
+        fir
+        (oak 'some))
+    (message
+     "Here are %d variables with %s, %s, and %s value."
+     birch pine fir oak))
+#+end_src
+
+#+RESULTS:
+: Here are 3 variables with nil, nil, and some value.
+
+** if
+A third special form, in addition to ‘defun’ and ‘let’, is the conditional ‘if’.
+This form is used to instruct the computer to make decisions.
+
+*** if in more detail
+An ‘if’ expression written in Lisp does not use the word “then”; the test and
+the action are the second and third elements of the list whose first element is
+‘if’.  Nonetheless, the test part of an ‘if’ expression is often called the
+“if-part” and the second argument is often called the “then-part”.
+
+Also, when an ‘if’ expression is written, the true-or-false-test is usually
+written on the same line as the symbol ‘if’, but the action to carry out if the
+test is true, the then-part, is written on the second and subsequent lines.
+This makes the ‘if’ expression easier to read:
+
+#+begin_src emacs-lisp
+  (if TRUE-OR-FALSE-TEST
+      ACTION-TO-CARRY-OUT-IF-TEST-IS-TRUE)
+#+end_src
+
+Here is an example:
+
+#+begin_src emacs-lisp
+  (if (> 5 4)                           ; if-part
+      (message "Five is greater than four!")) ; then-part
+#+end_src
+
+#+RESULTS:
+: Five is greater than four!
+
+And a more realistic example:
+
+#+begin_src emacs-lisp
+  (defun type-of-animal (characteristic)
+    "Print message in echo area depending on CHARACTERISTIC.
+  If the CHARACTERISTIC is the string \"fierce\",
+ then warn of a tiger."
+    (if (equal characteristic "fierce")
+        (message "It is a tiger!")))
+
+  (type-of-animal "fierce")"It is a tiger!"
+  (type-of-animal "striped")
+#+end_src
+
+*** type-of-animal in detail
+‘if’ is a special form in ‘C source code’.
+
+The template of and ‘if’ statement is:
+
+#+begin_src emacs-lisp
+  (if COND THEN ELSE...)
+#+end_src
+
+If COND yields non-nil, do THEN, else do ELSE...
+Returns the value of THEN or the value of the last of the ELSE’s.
+THEN must be one expression, but ELSE... can be zero or more expressions.
+If COND yields nil, and there are no ELSE’s, the value is nil.
+
+** else
+An ‘if’ expression may have an optional third argument, called the “else-part”,
+for the case when the true-or-false-test returns false.  When this happens, the
+second argument or then-part of the overall ‘if’ expression is /not/ evaluated,
+but the third or else-part /is/ evaluated.
+
+In the written Lisp, the else-part is usually written to start on a line of its
+own and is indented less than the then-part:
+
+#+begin_src emacs-lisp
+  (if TRUE-OR-FALSE-TEST
+         ACTION-TO-CARRY-OUT-IF-THE-TEST-RETURNS-TRUE
+       ACTION-TO-CARRY-OUT-IF-THE-TEST-RETURNS-FALSE)
+#+end_src
+
+Here is an example:
+
+#+begin_src emacs-lisp
+  (if (> 4 5)                        ; if-part
+      (message "Four falsely greater than five!") ; then-part
+    (message "Four is not greater than five!"))   ; else-part
+#+end_src
+
+#+RESULTS:
+: Four is not greater than five!
+
+And a more elaborated example with the ‘type-of-animal’ function:
+
+#+begin_src emacs-lisp
+  (defun type-of-animal (characteristic)  ; Second version.
+    "Print message in echo area depending on CHARACTERISTIC.
+  If the CHARACTERISTIC is the string \"fierce\",
+  then warn of a tiger; else say it is not fierce."
+    (if (equal characteristic "fierce")
+        (message "It is a tiger!")
+      (message "It is not fierce!")))
+
+  (type-of-animal "fierce")"It is a tiger!"
+  (type-of-animal "striped")"It is not fierce!"
+#+end_src
+
+** Truth & Falsehood
+In Lisp, the predicate “false” is represented by the symbol ‘nil’.  Anything
+else (anything at all) is “true”.
+
+The expression that tests for truth is interpreted as “true” if the result of
+evaluating it is a value that is not ‘nil’.  In other words, the result of the
+test is considered true if the value returned is a number such as 42, a string
+such as ‘"hello"’, or a symbol (other than ‘nil’) such as ‘flowers’, or a list
+(so long as it is not empty), or even a buffer.  If some other useful value is
+not available for the test that returns true, then the Lisp interpreter will
+return the symbol ‘t’ for true (see example under the following headline).
+
+*** nil explained
+In Emacs Lisp, the symbol ‘nil’ has two meanings.  First, it means the empty
+list.  Second, it means false and is the value returned when a
+true-or-false-test tests false.  ‘nil’ can be written as an empty list, ‘()’, or
+as ‘nil’.  As far as the Lisp interpreter is concerned, ‘()’ and ‘nil’ are the
+same:
+
+#+begin_src emacs-lisp
+  (equal () nil)
+#+end_src
+
+#+RESULTS:
+: t
+
+** save-excursion
+The ‘save-excursion’ function is a special form that saves the location of the
+point, executes the body of the function, and then restores point to its
+previous position if its location has changed.
+
+*** Point and mark
+“Point” is the current location of the cursor.  More precisely, on terminals
+where the cursor appears to be on top of a character, point is the immediately
+before the character.  In Emacs Lisp, point is an integer.  The function ‘point’
+returns the current position of the cursor as a number.  Each buffer has its own
+value for point.
+
+The “mark” is another position in the buffer; its value can be set with a
+command such as ‘set-mark-command’ (‘C-<SPC>’).  If a mark has been set, the
+command ‘exchange-point-and-mark’ (‘C-x C-x’) causes the cursor to jump to the
+mark and set the mark to be the previous position of point.  In addition,
+setting another mark saves the position of the previous mark in the mark ring.
+Many mark positions can be saved this way.  The prefixed command ‘C-u C-<SPC>’
+will jump to mark, and set the mark from position popped off the local mark
+ring.  Thus, successive invocations of ‘C-u C-<SPC>’ will sequentially jump to
+each previous positions of the mark kept in the mark ring.
+
+The part of the buffer between point and mark is called “the region”.  Numerous
+commands work on the region, including ‘center-region’, ‘count-lines-region’,
+‘kill-region’, and ‘print-region’.
+
+The ‘save-excursion’ special form saves the location of point and restores this
+position after the cod ewithin the body of the special form is evaluated by the
+Lisp interpreter.
+
+*** Template for save-excursion
+The template for save-excursion is as follows:
+
+#+begin_src emacs-lisp
+  (save-excursion
+    BODY...)
+#+end_src
+
+The body of the function is one or more expressions that will be evaluated in
+sequence by the Lisp interpreter.  If there is more than one expression in the
+body, the value of the last one will be returned as the value of the
+‘save-excursion’ function.  The other expressions in the body are evaluated only
+for their side effects; and ‘save-excursion’ itself is used only for its side
+effect (which is restoring the position of point).
+
+In Emacs Lisp code, a ‘save-excursion’ expression often occurs within the body
+of a ‘let’ expression:
+
+#+begin_src emacs-lisp
+  (let VARLIST
+    (save-excursion
+      BODY...))
+#+end_src
+
+** Review
+
+* Buffer Walk Through
+* More Complex
+* Narrowing & Widening
+* car cdr & cons
+* Cutting & Storing Text
+* List Implementation
+* Yanking
+* Loops & Recursion
+* Regexp Search
+* Counting Words
+* Words in a defun
+* Readying a Graph
+* Emacs Initialization
+* Debugging
+* Conclusion
+* the-the
+* Kill Ring
+* Full Graph
+* Free Software and Free Manuals
+* GNU Free Documentation License
