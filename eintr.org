@@ -129,8 +129,23 @@ extension, as opposed to a ‘.el’ extension, reserved for human readable code
 ** Evaluation
 “To ascertain the value or amount of; to appraise”, according to ‘Webster’s New
 Collegiate Dictionary’.
-*** TODO How the Interpreter Acts
-*** TODO Evaluating Inner Lists
+
+*** How the Interpreter Acts
+Evaluating a symbolic expression most commonly causes the Lisp interpreter to
+return a value and perhaps carry out a side effect; or else produce an error.
+
+*** Evaluating Inner Lists
+In nested lists, the innermost list is evaluated first and its returning value
+is passed to the enclosing list.  The outer expressions are then successively
+evaluated (if any), up to the outermost list:
+
+#+begin_src emacs-lisp
+  (+ 2 (+ 3 3))
+#+end_src
+
+#+RESULTS:
+: 8
+
 ** TODO Variables
 *** fill-column example
 *** Void Function
