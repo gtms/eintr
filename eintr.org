@@ -460,18 +460,105 @@ Write an expression that prints a message in the echo area when evaluated.
 #+end_src
 
 * Practicing Evaluation
+Symbol and lists can be evaluated.  When evaluating a list, the Lisp interpreter
+looks for a function definition for its first element.  The instructions of the
+function definition are then carried out with the arguments provided by the
+subsequent elements of the list.
 
 ** How to Evaluate
+In Emacs, editing commands are executed via the evaluation of an expression, the
+first element of which is a function.  For instance, typing plain text is
+achieved through the evaluation of an Emacs Lisp function,
+‘self-insert-command’.  Such functions are called “interactive” functions, or
+“commands”.
+
+Another way to evaluate an expression is by running the command
+‘eval-last-sexp’, which can be done by positioning the cursor after a list and
+typing ‘C-x C-e’.
 
 ** Buffer Names
+The difference between file and buffer is illustrated by the functions
+‘buffer-name’ and ‘buffer-file-name’.  While evaluating the expression
+‘(buffer-name)’ returns the name of the current buffer, evaluating
+‘(buffer-file-name)’ retrieves the full path-name of the file:
+
+#+begin_src emacs-lisp
+  (buffer-name) ; "eintr.org[emacs-lisp]"
+
+  (buffer-file-name) ; "/home/gtomas/Documents/programming/emacs-lisp/org/eintr/eintr.org"
+#+end_src
 
 ** Getting Buffers
+The ‘buffer-name’ function returns the /name/ of the buffer; to get the buffer
+/itself/, the ‘current-buffer’ function is used.  Upon evaluation of this
+function, the current buffer is returned as a lisp object; this is done as a
+side effect of returning a specially formatted form of the buffer’s name:
+
+#+begin_src emacs-lisp
+  (current-buffer) ; #<buffer eintr.org[emacs-lisp]>
+#+end_src
+
+A related function is ‘other-buffer’.  This returns the most recently selected
+buffer (that is not visible in another window) other than the one currently in
+focus:
+
+#+begin_src emacs-lisp
+  (other-buffer) ; #<buffer *eshell*>
+#+end_src
 
 ** Switching Buffers
+The ‘other-buffer’ function provides a buffer when it is used as an argument to
+a function that requires one.  It can thus be fed to the function
+‘switch-to-buffer’:
+
+#+begin_src emacs-lisp
+  (switch-to-buffer (other-buffer))
+#+end_src
+
+This will skip any buffer currently displayed.  To move to the most recent
+buffer, regardless of whether the buffer is already displayed in frame, the
+following expression needs to be evaluated:
+
+#+begin_src emacs-lisp
+  (switch-to-buffer (other-buffer (current-buffer) t))
+#+end_src
+
+‘set-buffer’ achieves a similar goal to ‘switch-to-buffer’, with one difference:
+it does not display the buffer itself (it us thus best suited for programmatic
+purposes instead).
 
 ** Buffer Size & Locations
+The function ‘buffer-size’ returns the size of the current buffer (a count of
+the number of characters in the buffer):
+
+#+begin_src emacs-lisp
+  (buffer-size) ; 32086
+#+end_src
+
+In Emacs, the current position of the cursor is called “point”.  The expression
+‘(point)’ returns an integer corresponding to the number of characters from the
+beginning of the buffer to point:
+
+#+begin_src emacs-lisp
+  (point) ; 17635
+#+end_src
+
+The function ‘point-min’ returns the value of the minimum value of point in the
+current buffer (which should be one unless “narrowing” is in effect).  Likewise,
+the function ‘point-max’ returns the value of the maximum permissible value of
+point in the current buffer.
 
 ** Exercise
+Find a file with which you are working and move towards its middle.  Find its
+buffer name, file name, length, and your position in the file.
+
+#+begin_src emacs-lisp
+  (switch-to-buffer (current-buffer)) ; switch to this file
+  (goto-char (/ (buffer-size) 2))     ; move to its middle
+  (buffer-name) ; return the name of the buffer
+  (buffer-size) ; return the size (number of characters) of the buffer
+  (point)       ; return the position of the point in the file
+#+end_src
 
 * How to Write Function Definitions
 ** Primitive Functions
