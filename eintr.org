@@ -561,19 +561,118 @@ buffer name, file name, length, and your position in the file.
 #+end_src
 
 * How to Write Function Definitions
+A symbol that has a function definition is called a function (technically, the
+the definition is the function and symbol /refers/ to it).
+
 ** Primitive Functions
+All functions are defined in terms of other functions, except for “primitive”
+functions that are written in the C programming language.  Function definitions
+are written in Emacs Lisp and use other functions a their building blocks.
 
 ** defun
+A function definition has up to five parts following the symbol ‘defun’:
+
+1. The name of the symbol to which the function definition is attached.
+
+2. A list of the arguments that will be passed to the function.  If no arguments
+   will be passed to the function, this is the empty list, ‘()’.
+
+3. Documentation describing the function.  Although technically optional, this
+   is strongly recommended.
+
+4. Optionally, an expression to make the function interactive so that it can be
+   used by typing ‘M-x’ and then the name of the function; or by typing an
+   appropriate key or keychord.
+
+5. The code that instructs the computer what to do: the “body” of the function
+   definition.
+
+The template of a function definition looks like this:
+
+#+begin_src emacs-lisp
+  (defun FUNCTION-NAME (ARGUMENTS...)
+    "OPTIONAL-DOCUMENTATION..."
+    (interactive ARGUMENT-PASSING-INFO) ; optional
+    BODY...)
+#+end_src
+
+Here is an example of a function that multiplies its argument by seven:
+
+#+begin_src emacs-lisp
+  (defun multiply-by-seven (number)
+    "Multiply NUMBER by seven."
+    (* 7 number))
+#+end_src
 
 ** Install a Function Definition
+The process of evaluating a function definition (by running the
+‘eval-last-sexp’, or typing ‘C-x C-e’ with the cursor immediately after the
+definition) results in the installation of the function in Emacs’ namespace
+(returning the name of the function itself).  The function can now be called
+from within any expression.
 
 *** Effect of Installation
+Installing a function makes it available for use within Emacs.  The following
+can now be evaluated:
+
+#+begin_src emacs-lisp
+  (multiply-by-seven 3) ; 21
+#+end_src
+
+#+RESULTS:
+: 21
+
+The documentation of a function definition can be inquired by invoking the
+‘describe-function’ (‘C-h f’) command.
 
 *** Change a Function Definition
+To change or update a function definition, install the modified function
+definition.  This will replace the former version in the namespace:
+
+#+begin_src emacs-lisp
+  (defun multiply-by-seven (number)     ; Second version
+    "Multiply NUMBER by seven."
+    (+ number number number number number number number))
+#+end_src
+
+Note that, in Lisp, everything that follows a semicolon in a line is a comment.
 
 ** Make a Function Interactive
+A function is made interactive by placing a list that begins with the special
+form ‘interactive’ immediately after the documentation.  A user can invoke an
+interactive function by typing ‘M-x’ and then the name of the function; or by
+typing the keys to which it is bound, for example, by typing ‘C-n’ for
+‘next-line’ or ‘C-x h’ for ‘mark-whole-buffer’.
 
 *** Interactive multiply-by-seven
+Here is an example of an interactive version of ‘multiply-by-seven’:
+
+#+begin_src emacs-lisp
+  (defun multiply-by-seven (number)     ; Interactive version
+    "Multiply NUMBER by seven."
+    (interactive "p")
+    (message "The result is %d" (* 7 number)))
+#+end_src
+
+Once installed, the function can now be used interactively by typing ‘C-u’ and a
+number and then typing ‘M-x multiply-by-seven’ and pressing <RET>.  ‘The phrase
+The result is …’ followed by the product will appear in the echo area.
+
+An interactive function is invoked in one of two ways:
+
+1. By typing a prefix argument that contains the number to be passed, and then
+   typing ‘M-x’ and the name of the function, as with ‘C-u 3 M-x
+   forward-sentence’; or,
+
+2. By typing whatever key or keychord the function is bound to, as with ‘C-u 3
+   M-e’.
+
+Both the examples above work identically to move point forward three sentences.
+
+A “prefix argument” is passed to an interactive function by typing the <META>
+key followed by a number, for example, ‘M-3 M-e’, or by typing ‘C-u’ and then a
+number, for example, ‘C-u 3 M-e’ (if you type ‘C-u’ without a number, it
+defaults to 4).
 
 *** multiply-by-seven in detail
 In this function, the expression, ‘(interactive "p")’, is a list of two
@@ -605,37 +704,37 @@ optionally by a prompt.  To pass several arguments to the command, concatenate
 the individual strings, separating them by newline characters.
 
 Code letters available are:
-a -- Function name: symbol with a function definition.
-b -- Name of existing buffer.
-B -- Name of buffer, possibly nonexistent.
-c -- Character (no input method is used).
-C -- Command name: symbol with interactive function definition.
-d -- Value of point as number.  Does not do I/O.
-D -- Directory name.
-e -- Parameterized event (i.e., one that’s a list) that invoked this command.
-     If used more than once, the Nth ‘e’ returns the Nth parameterized event.
-     This skips events that are integers or symbols.
-f -- Existing file name.
-F -- Possibly nonexistent file name.
-G -- Possibly nonexistent file name, defaulting to just directory name.
-i -- Ignored, i.e. always nil.  Does not do I/O.
-k -- Key sequence (downcase the last event if needed to get a definition).
-K -- Key sequence to be redefined (do not downcase the last event).
-m -- Value of mark as number.  Does not do I/O.
-M -- Any string.  Inherits the current input method.
-n -- Number read using minibuffer.
-N -- Numeric prefix arg, or if none, do like code ‘n’.
-p -- Prefix arg converted to number.  Does not do I/O.
-P -- Prefix arg in raw form.  Does not do I/O.
-r -- Region: point and mark as 2 numeric args, smallest first.  Does no I/O.
-s -- Any string.  Does not inherit the current input method.
-S -- Any symbol.
-U -- Mouse up event discarded by a previous k or K argument.
-v -- Variable name: symbol that is ‘custom-variable-p’.
-x -- Lisp expression read but not evaluated.
-X -- Lisp expression read and evaluated.
-z -- Coding system.
-Z -- Coding system, nil if no prefix arg.
++ a -- Function name: symbol with a function definition.
++ b -- Name of existing buffer.
++ B -- Name of buffer, possibly nonexistent.
++ c -- Character (no input method is used).
++ C -- Command name: symbol with interactive function definition.
++ d -- Value of point as number.  Does not do I/O.
++ D -- Directory name.
++ e -- Parameterized event (i.e., one that’s a list) that invoked this command.
+  If used more than once, the Nth ‘e’ returns the Nth parameterized event.
+  This skips events that are integers or symbols.
++ f -- Existing file name.
++ F -- Possibly nonexistent file name.
++ G -- Possibly nonexistent file name, defaulting to just directory name.
++ i -- Ignored, i.e. always nil.  Does not do I/O.
++ k -- Key sequence (downcase the last event if needed to get a definition).
++ K -- Key sequence to be redefined (do not downcase the last event).
++ m -- Value of mark as number.  Does not do I/O.
++ M -- Any string.  Inherits the current input method.
++ n -- Number read using minibuffer.
++ N -- Numeric prefix arg, or if none, do like code ‘n’.
++ p -- Prefix arg converted to number.  Does not do I/O.
++ P -- Prefix arg in raw form.  Does not do I/O.
++ r -- Region: point and mark as 2 numeric args, smallest first.  Does no I/O.
++ s -- Any string.  Does not inherit the current input method.
++ S -- Any symbol.
++ U -- Mouse up event discarded by a previous k or K argument.
++ v -- Variable name: symbol that is ‘custom-variable-p’.
++ x -- Lisp expression read but not evaluated.
++ X -- Lisp expression read and evaluated.
++ z -- Coding system.
++ Z -- Coding system, nil if no prefix arg.
 
 ** Install Code Permanently
 Functions installed through evaluation are purged from memory upon quitting
