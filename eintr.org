@@ -562,7 +562,7 @@ buffer name, file name, length, and your position in the file.
 
 * How to Write Function Definitions
 A symbol that has a function definition is called a function (technically, the
-the definition is the function and symbol /refers/ to it).
+definition is the function and symbol /refers/ to it).
 
 ** Primitive Functions
 All functions are defined in terms of other functions, except for “primitive”
@@ -1018,6 +1018,216 @@ of a ‘let’ expression:
 #+end_src
 
 ** Review
+This is a review of the macros, function definitions and special forms covered
+so far.
+
+*** ‘eval-last-sexp’
+Evaluate the last symbolic expression before the current location of point.  The
+value is printed in the echo area unless the function is invoked with an
+argument; in that case, the output is printed in the current buffer.  This
+command is normally bound to ‘C-x C-e’.
+
+*** ‘defun’
+Define function.  This macro has up to five parts: the name, a template for the
+arguments that will be passed to the function, documentation, an optional
+interactive declaration, and the body of the definition.
+
+For example, in Emacs the funciton definition of ‘dired-unmark-all-marks’ is as
+follows.
+
+#+begin_src emacs-lisp
+  (defun dired-unmark-all-marks ()
+    "Remove all marks from all files in the Dired buffer."
+    (interactive)
+    (dired-unmark-all-files ?\r))
+#+end_src
+
+*** ‘interactive’
+Declare to the interpreter that the function can be used interactively.  This
+special form may be followed by a string with one or more parts that pass the
+information to the arguments of the function, in sequence.  These parts may also
+tell the interpreter to prompt for information.  Parts of the string are
+separated by newlines, ‘\n’.
+
+Common code characters are:
+
++ ‘b’: The name of an existing buffer.
++ ‘f’: The names of an existing file.
++ ‘p’: The numeric prefix argument.  (Note that this ‘p’ is lower case.)
++ ‘r’: Point and the mark, as two numeric arguments, smallest first.  This is
+  the only code letter that specifies two successive arguments rather than one.
+
+*** ‘let’
+Declare that the list of variables is for use within the body of the ‘let’ and
+give them an initial value, either ‘nil’ or a specified value; then evaluate the
+rest of the expressions in the body of the ‘let’ and return the value of the
+last one.  Inside the body of the ‘let’, the Lisp interpreter does not see the
+values of the variables of the same names that are bound outside of the ‘let’.
+
+For example,
+
+#+begin_src emacs-lisp
+  (let ((foo (buffer-name))
+        (bar (buffer-size)))
+    (message
+     "This buffer is %s and has %d characters."
+     foo bar))
+#+end_src
+
+*** ‘save-excursion’
+Record the values of point and the current buffer before evaluating the body of
+this special form.  Restore the value of point and buffer afterwards.
+
+For example,
+
+#+begin_src emacs-lisp
+  (message "We are %d characters into this buffer."
+           (- (point)
+              (save-excursion
+                (goto-char (point-min))
+                (point))))
+#+end_src
+
+#+RESULTS:
+: We are 39114 characters into this buffer.
+
+*** ‘if’
+Evaluate the first argument to the function; if it is true, evaluate the seconds
+argument; else evaluate the third argument, if there is one.
+
+The ‘if’ special form is called “conditional”.  There are other conditionals in
+Emacs Lisp, but ‘if’ is perhaps the most commonly used.
+
+For example,
+
+#+begin_src emacs-lisp
+  (if (= 22 emacs-major-version)
+      (message "This is version 22 of Emacs.")
+    (message "This is not version 22 of Emacs."))
+#+end_src
+
+*** ‘<’, ‘>’, ‘<=’ & ‘>=’
+The ‘<’ function tests whether its first argument is smaller than its second
+argument.  A corresponding function, ‘>’, tests whether the first argument is
+greater than the second.  Likewise, ‘<=’ tests whether the first argument is
+less than or equal to the second and ‘>=’ tests whether the first argument is
+greater than or equal to the second.  In all cases, both arguments must be
+numbers or markers (markers indicate positions in buffers).
+
+*** ‘=’
+The ‘=’ function tests whether two arguments, both numbers or markers, are
+equal.
+
+*** ‘equal’ & ‘eq’
+Tests whether two objects are the same.  ‘equal’ uses one meaning of the word
+“same” and ‘eq’ uses another: ‘equal’ returns true if the two objects have a
+similar structure and contents, such as two copies of the same book.  On the
+other hand, ‘eq’ returns true if both arguments are actually the same object.
+
+*** ‘string<’, ‘string-lessp’, ‘string=’ & ‘string-equal’
+The ‘string-lessp’ function tests whether its first argument is smaller than the
+second argument.  A shorter, alternative name for the same function (a
+‘defalias’) is ‘string<’.
+
+The arguments to ‘string-lessp’ must be strings or symbols; the ordering is
+lexicographic, so case is significant.  The print names of symbols are used
+insteada of the symbols themselves.
+
+An empty string, ‘""’, a string with no characters in it, is smaller than any
+string of characters.
+
+‘string-equal’ provides the corresponding test for equality.  Its shorter
+alternative name is ‘string=’.  There are no string test functions that
+correspond to ‘>’, ‘>=’, or ‘<=’.
+
+*** ‘message’
+Print a message in the echo area.  The first argument is a string that can
+contain ‘%s’, ‘%d’, or ‘%c’ to print the value of arguments that follow the
+string.  The argument used by ‘%s’ must be a string or a symbol; the argument
+used by ‘%d’ must be a number.  The argument used by ‘%c’ must be an ASCII code
+number; it will be printed as the character with that ASCII code.  (Various
+other %-sequences also exist.)
+
+*** ‘setq’ & ‘set’
+The ‘setq’ function sets the value of its first argument to the value of the
+second argument.  The first argument is automatically quoted by ‘setq’.  It does
+the same for suceeding pairs of arguments.  Another function, ‘set’, takes only
+two arguments and evaluates both of them before setting the value returned by
+its first argument to the value returned by its second argument.
+
+*** ‘buffer-name’
+Without an argument, return the name of the buffer, as a string.
+
+*** ‘buffer-file-name’
+Without an argument, return the name of the file the buffer is visiting.
+
+*** ‘current-buffer’
+Return the buffer in which Emacs is active; it may not be the buffer that is
+visible on screen.
+
+*** ‘other-buffer’
+Return the most recently selected buffer (other than the buffer passed to
+‘other-buffer’ as an argument and other than the current buffer).
+
+*** ‘switch-to-buffer’
+Select a buffer for Emacs to be active in and display it in the current window
+so users can look at it.  Usually bound to ‘C-x b’.
+
+*** ‘set-buffer’
+Switch Emacs’s attention to a buffer on which programs will run.  Don’t alter
+what the window is showing.
+
+*** ‘buffer-size’
+Return the number of characters in the current buffer.
+
+*** ‘point’
+Return the value of the current position of the cursor, as an integer counting
+the number of characters from the beginning of the buffer.
+
+*** ‘point-min’
+Return the minimum permissible value of point in the current buffer.  This is
+one, unless narrowing is in effect.
+
+*** ‘point-max’
+Return the value of the maximum permissible value of point in the current
+buffer.  This is the end of the buffer, unless narrowing is in effect.
+
+** Exercises
+*** Exercise 3.1
+Write a non-interactive function that doubles the value of its argument, a
+number.  Make that function interactive.
+
+#+begin_src emacs-lisp
+  (defun double-me (number)             ; non-interactive version
+    "Returns twice the value of NUMBER."
+    (* 2 number))
+
+  (double-me 3) ; 6
+
+  (defun double-me (number)             ; interactive-version
+    "Returns twice the value of NUMBER."
+    (interactive "p")
+    (message "%d is twice the value of %d"
+             (* 2 number)
+             number))
+#+end_src
+
+*** Exercise 3.2
+Write a function that tests whether the current value of ‘fill-column’ is
+greater than the argument passed to the function, and if so, prints an
+appropriate message.
+
+#+begin_src emacs-lisp
+  (defun fill-column-compare (number)
+    "Compares value of NUMBER with the value of `fill-column'."
+    (interactive "p")
+    (if (> fill-column number)
+        (message "The number %d is lesser than the value of `fill-column' (%d)"
+                 number fill-column)
+      (message "The number %d is equal or bigger than the value of `fill-column' (%d)"
+               number fill-column)))
+#+end_src
+
 * Buffer Walk Through
 * More Complex
 * Narrowing & Widening
