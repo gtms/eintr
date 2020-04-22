@@ -1229,6 +1229,244 @@ appropriate message.
 #+end_src
 
 * Buffer Walk Through
+This chapter covers some GNU Emacs buffer-related functions.
+
+** Finding More
+Emacs Lisp function are documented.  Their documentation can be reached via the
+command ‘describe-function’ (bound to ‘C-h f’).  Similarly, the full
+documentation of a variable can be perused via the command ‘describe-variable’
+(bound to ‘C-h v’).
+
+To enquire a function’s original source file, refer to the function
+‘xref-find-definitions’.  ‘xref-find-definitions’ works with a variety of
+languages, not just Lisp and C, and it works with non-programming text as well.
+For example, ‘xref-find-definitions’ will jump to the various nodes in the
+Texinfo source file of an Info document (provided that the ‘etags’ utility was
+run to record all the nodes in the manuals that comes with Emacs).
+
+** A Simplified ‘beginning-of-buffer’ Definition
+As an interactive command, ‘beginning-of-buffer’ moves the cursor to the
+beginning of the buffer, leaving the mark at the previous position.  It is
+generally bound to ‘M-<’.
+
+Here is a simplified version of the actual function definition:
+
+#+begin_src emacs-lisp
+  (defun simplified-beginning-of-buffer ()
+    "Move point to the beginning of the buffer;
+  leave mark at previous position."
+    (interactive)
+    (push-mark)
+    (goto-char (point-min)))
+#+end_src
+
+** The Definition of ‘mark-whole-buffer’
+The ‘mark-whole-buffer’ funciton marks a while buffer as a region by putting
+point at the beginning and a mark at the end of the buffer.  It is generally
+bound to ‘C-x h’.
+
+*** ‘mark-whole-buffer’ overview
+In GNU Emacs 22, the code for the complete function looks like this:
+
+#+begin_src emacs-lisp
+  (defun mark-whole-buffer ()
+    "Put point at beginning and mark at end of buffer.
+  You probably should not use this function in Lisp programs;
+  it is usually a mistake for a Lisp function to use any subroutine
+  that uses or sets the mark."
+    (interactive)
+    (push-mark (point))
+    (push-mark (point-max) nil t)
+    (goto-char (point-min)))
+#+end_src
+
+*** Body of ‘mark-whole-buffer’
+In the line,
+
+#+begin_src emacs-lisp
+  (push-mark (point-max) nil t)
+#+end_src
+
+the first argument, ‘(point-max)’, tells the function to set the mark at the
+point in the buffer that has the highest number.  The second argument, ‘nil’,
+instructs the function to display a message that says “Mark set” when it pushes
+the mark.  The third argument, ‘t’, tells ‘push-mark’ to activate the mark when
+Transient Mark mode is turned on.  Transient Mark mode highlights the current
+active region (it often turned off).
+
+** The Definition of ‘append-to-buffer’
+The ‘append-to-buffer’ command copies the region (that is, the part of the
+buffer between point and mark) from the current buffer to a specified buffer.
+
+*** An Overview of ‘append-to-buffer’
+The ‘append-to-buffer’ command uses the ‘insert-buffer-substring’ function to
+copy the region.  ‘insert-buffer-substring’ takes a substring from a buffer, and
+inserts it into another buffer.
+
+Here is the text of the ‘append-to-buffer’ function (at the date of the writing
+of the book; it has since been amended):
+
+#+begin_src emacs-lisp
+  (defun append-to-buffer (buffer start end)
+    "Append to specified buffer the text of the region.
+  It is inserted into that buffer before its point.
+
+  When calling from a program, give three arguments:
+  BUFFER (or buffer name), START and END.
+  START and END specify the portion of the current buffer to be copied."
+    (interactive
+     (list (read-buffer "Append to buffer: " (other-buffer
+                                              (current-buffer) t))
+           (region-beginning) (region-end)))
+    (let ((oldbuf (current-buffer)))
+      (save-excursion
+        (let* ((append-to (get-buffer-create buffer))
+               (windows (get-buffer-window-list append-to t t))
+               point)
+          (set-buffer append-to)
+          (setq point (point))
+          (barf-if-buffer-read-only)
+          (insert-buffer-substring oldbuf start end)
+          (dolist (window windows)
+            (when (= (window-point window) point)
+              (set-window-point window (point))))))))
+#+end_src
+
+The function has three arguments: the ‘buffer’ to which the text will be copied,
+and the ‘start’ and the ‘end’ of the region in the current buffer that will be
+copied.  As stated in the documentation, the function can handle both the
+destination buffer and its name.
+
+*** The ‘append-to-buffer’ Interactive Expression
+The interactive expression contains a list composed of three parts.  The first
+part of this list is an expression to read the name of a buffer and return it as
+a string.  This is achieved through the function ‘read-buffer’.  This functions
+requires a prompt as its first argument, ‘"Append to buffer: "’.  Its second
+argument tells the command what value to provide if nothing is specified.
+
+This fallback argument is an expression calling the function ‘other-buffer’, an
+exception, and the symbol ‘t’, standing for true.  This means that, should the
+user not provide a buffer to append the region to, the function will take the
+most recent buffer other than the current buffer (regardless of whether it is
+visible or not) as its BUFFER argument.
+
+*** The Body of ‘append-to-buffer’
+The body of the function is wrapped in a ‘let’ statement.  This statement binds
+the value returned by ‘(current-buffer)’ to the variable ‘oldbuf’.  This
+variable will be used to keep track of the current working buffer.
+
+*** ‘save-excursion’ in ‘append-to-buffer’
+The body of the ‘let’ expression in ‘append-to-buffer’ consists of a
+‘save-excursion’ expression.
+
+The body of the ‘save-excursion’ expression is itself wrapped in a ‘let*’
+expression.  This command behaves in the same manner as the ‘let’ special form,
+except that it allows for variables set later in its VARLIST to make use of the
+values to which Emacs set variables earlier in the VARLIST.
+
+The ‘set-buffer’ function makes its argument (expressed as a buffer or a buffer
+name) current for editing operations.  The variable ‘append-to’ is fed as an
+argument to the ‘set-buffer’ call; this variable is bound to
+‘(get-buffer-create buffer)’ earlier in the ‘let*’ expression.
+
+The function that does the actual job is ‘insert-buffer-substring’.  Because
+this function copies text /from/ a specified third party buffer to the current
+buffer (the reverse operation we want to perform), ‘append-to-buffer’ first
+switches focus to the destination buffer, making it the current one.  Then it
+makes a call to ‘insert-buffer-substring’, taking text from ‘oldbuf’ (the one
+from which the call to ‘append-to-buffer’ is issued) to the buffer designated as
+‘append-to’.
+
+Once the string is appended, focus is returned to the starting buffer through
+the closing of the ‘save-excursion’ expression.
+
+Written in skeletal form, the workings of the ‘append-to-buffer’ function look
+like this:
+
+#+begin_src emacs-lisp
+  (let (BIND-oldbuf-TO-VALUE-OF-current-buffer)
+    (save-excursion                       ; Keep track of buffer.
+      CHANGE-BUFFER
+      INSERT-SUBSTRING-FROM-oldbuf-INTO-BUFFER)
+
+    CHANGE-BACK-TO-ORIGINAL-BUFFER-WHEN-FINISHED
+    LET-THE-LOCAL-MEANING-OF-oldbuf-DISAPPEAR-WHEN-FINISHED)
+#+end_src
+
+** Review
+Here is a summary of the functions covered in this chapter.
+
+*** ‘describe-function’ & ‘describe-variable’
+Print the documentation for a function or variable.  Conventionally bound to
+‘C-h f’ and ‘C-h v’.
+
+*** ‘xref-find-definitions’
+Find the file containing the source for a function or variable and switch
+buffers to it, positioning point at the beginning of the item.  Conventionally
+bound to ‘M-.’.
+
+*** ‘save-excusrion’
+Save the location of point and restore its value after the arguments to
+‘save-excusrion’ have been evaluated.  Also, remember the current buffer and
+return to it.
+
+*** ‘push-mark’
+Set mark at a location and record the value of the previous mark on the mark
+ring.  The mark is a location in the buffer that will retain its relative
+position even if text is added to or removed from the buffer.
+
+*** ‘goto-char’
+Set point to the location specified by the value of the argument, which can be a
+numberm a marker, or an expression that returns the number of a position, such
+as ‘(point-min)’.
+
+*** ‘insert-buffer-substring’
+Copy a region of text from a buffer that is passed to the function as an
+argument and insert the region into the current buffer.
+
+*** ‘mark-whole-buffer’
+Mark the whole buffer as a region.  Normally bound to ‘C-x h’.
+
+*** ‘set-buffer’
+Switch the focus of Emacs to another buffer, but do not change the window being
+displayed.  Used when the program rather than a human it to work on a different buffer.
+
+*** ‘get-buffer-create’ & ‘get-buffer’
+Find a named buffer or create one if a buffer of that name does not exist.  The
+‘get-buffer’ function returns ‘nil’ if the named buffer does not exist.
+
+** Exercises
+*** Exercise 4.1
+Write a ‘simplified-end-of-buffer’ function; then test to see whether it works.
+
+#+begin_src emacs-lisp
+  (defun simplified-end-of-buffer ()
+      "Go the the end of the buffer."
+    (interactive)
+    (goto-char (point-max)))
+#+end_src
+
+*** Exercise 4.2
+Use ‘if’ and ‘get-buffer’ to write a function the prints a message telling
+whether a buffer exists.
+
+#+begin_src emacs-lisp
+  (defun is-bufferp (buffer)
+    "Determines whether buffer BUFFER exists."
+    (interactive "BBuffer:")
+    (if (get-buffer buffer)
+        (message "Buffer %s does exist!" buffer)
+      (message "Buffer %s does not exist." buffer)))
+#+end_src
+
+*** Exercise 4.3
+Using ‘xref-find-definitions’, find the source for the ‘copy-to-buffer’
+function.
+
+#+begin_src emacs-lisp
+  (xref-find-definitions 'copy-to-buffer)
+#+end_src
+
 * More Complex
 * Narrowing & Widening
 * car cdr & cons
