@@ -1468,6 +1468,373 @@ function.
 #+end_src
 
 * More Complex
+More complex examples follow: ‘copy-to-buffer’ and ‘insert-buffer’.
+
+** ‘copy-to-buffer’
+This function behaves just like ‘append-to-buffer’, except that it replaces the
+text in the target buffer instead of adding to it.  The body of ‘copy-to-buffer’
+(at the time of the writing of the book) is as follows:
+
+#+begin_src emacs-lisp
+  ...
+     (interactive "BCopy to buffer: \nr")
+     (let ((oldbuf (current-buffer)))
+       (with-current-buffer (get-buffer-create buffer)
+         (barf-if-buffer-read-only)
+         (erase-buffer)
+         (save-excursion
+           (insert-buffer-substring oldbuf start end))))
+#+end_src
+
+The function ‘with-current-buffer’ will execute its body with the buffer given
+as its first argument (the buffer to copy to) in focus.  Its body is composed of
+a ‘saved-excursion’ special form wherein the contents of the target buffer are
+first erased, then replaced by the region to copy from the current buffer (via
+an ‘insert-buffer-substring’ call).
+
+An outline of the body of ‘copy-to-buffer’ looks like this:
+
+#+begin_src emacs-lisp
+  (let (BIND-oldbuf-TO-VALUE-OF-current-buffer)
+    (WITH-THE-BUFFER-YOU-ARE-COPYING-TO
+     (BUT-DO-NOT-ERASE-OR-COPY-TO-A-READ-ONLY-BUFFER)
+     (erase-buffer)
+     (save-excursion
+       INSERT-SUBSTRING-FROM-oldbuf-INTO-BUFFER)))
+#+end_src
+
+** The Definition of ‘insert-buffer’
+The function ‘insert-buffer’ copies another buffer /into/ the current buffer.
+It is the reverse of ‘append-to-buffer’ or ‘copy-to-buffer’, since they copy a
+region of text /from/ the current buffer to another buffer.
+
+*** The Code for ‘insert-buffer’
+Here is the code of the definition (this is not the code of the current
+implementation in Emacs):
+
+#+begin_src emacs-lisp
+  (defun insert-buffer (buffer)
+    "Insert after point the contents of BUFFER.
+       Puts mark after the inserted text.
+       BUFFER may be a buffer or a buffer name."
+    (interactive "*bInsert buffer: ")
+    (or (bufferp buffer)
+        (setq buffer (get-buffer buffer)))
+    (let (start end newmark)
+      (save-excursion
+        (save-excursion
+          (set-buffer buffer)
+          (setq start (point-min) end (point-max)))
+        (insert-buffer-substring buffer start end)
+        (setq newmark (point)))
+      (push-mark newmark)))
+#+end_src
+
+*** The Interactive Expression in ‘insert-buffer’
+In ‘insert-buffer’, the argument to the ‘interactive’ declaration has two parts,
+an asterisk, ‘*’, and ‘bInsert buffer: ’.
+
+**** A Read-only buffer
+The asterisk is for the situation when the current buffer is a read-only buffer
+(a buffer that cannot be edited).  If ‘insert-buffer’ is called when the current
+buffer is read-only, a message to this effect is printed in the echo area and
+the terminal may beep of blink; as a consequence, no text will be inserted into
+current buffer.  The asterisk does not need to be followed by a newline to
+separate it from the next argument.
+
+**** ‘b’ in an Interactive Expression
+The next argument in the interactive expression starts with a lower case ‘b’.
+The lower-case ‘b’ tells the Lisp interpreter that the argument for
+‘insert-buffer’ should be an existing buffer (or else its name).  (The
+upper-case ‘B’ option provides for the possibility that the buffer does not
+exist.)  Emacs will prompt for the name of the buffer, offering a default
+buffer, with name completion enabled.  If the buffer does not exist, the message
+“No match” is returned; the terminal may beep as well.
+
+*** The Body of the ‘insert-buffer’ Function
+The body of the ‘insert-buffer’ function has two major parts: an ‘or’ expression
+and a ‘let’ expression.  The purpose of the ‘or’ expression is to ensure that
+the argument ‘buffer’ is bound to a buffer and not just the name of a buffer.
+(The ‘or’ function evaluates its arguments until one of them yields non-nil,
+then returns that value.)
+
+The body of the ‘let’ expression contains the code which copies the other buffer
+into the current buffer.
+
+*** ‘insert-buffer’ with an ‘if’ instead of an ‘or’
+The goal of the ‘or’ expression is to ensure that the value of ‘buffer’ is a
+buffer and not the name of a buffer.  Should the value be a name, then buffer
+itself must be return.
+
+Using a predicate called ‘bufferp’ that tells us whether we have a buffer
+(rather than its name), we can formulate the ‘if’ statement code like this:
+
+#+begin_src emacs-lisp
+  (if (not (bufferp buffer))            ; if-part
+      (setq buffer (get-buffer buffer))) ; then-part
+#+end_src
+
+*** The ‘or’ in the Body
+An ‘or’ expression can have any number of arguments.  It evaluates each argument
+in turn and returns the value ot the first of its arguments that is not ‘nil’.
+In addition, it refrains to evaluate any subsequent arguments after returning
+the first non-‘nil’ value.
+
+*** The ‘let’ Expression in ‘insert-buffer’
+The whole ‘let’ expression looks like this:
+
+#+begin_src emacs-lisp
+  (let (start end mark)
+    (save-excursion
+      (save-excursion
+        (set-buffer buffer)
+        (setq start (point-min)
+              end (point-max)))
+      (insert-buffer-substring buffer start end)
+      (setq newmark (point)))
+    (push-mark newmark))
+#+end_src
+
+There are two nested ‘save-excursion’ forms within the ‘let’ expression.  The
+innermost one moves focus to the buffer to copy and binds the variables ‘start’
+and ‘end’ to the values of ‘point-min’ and ‘point-max’ in that buffer.  Once
+these variables are set, focus returns to the current buffer and the contents of
+the buffer to copy are inserted via the function ‘insert-buffer-substring’.
+
+Then, a new position of the mark, located at the end of the copied text, is
+pushed to the mark ring.
+
+Once the execution of the instructions within the outer ‘save-excursion’ call
+are completed, point is restored to the beginning of the inserted text (which is
+where it was before the insert function was called).
+
+*** New  Body for ‘insert-buffer’
+In more recent Emacs’ iterations, the body of the ‘insert-buffer’ function
+consists of two expressions, as follows:
+
+#+begin_src emacs-lisp
+  (push-mark
+   (save-excursion
+     (insert-buffer-substring (get-buffer buffer))
+     (point)))
+#+end_src
+
+Here, the ‘get-buffer’ call returns a buffer with the provided name.  This
+buffer is passed to the ‘insert-buffer-substring’ command, which then proceeds
+to insert the whole of the buffer in the current location at point.  The
+location of point at the end of the inserted text is finally pushed to the
+mark ring.  Notice that the function returns ‘nil’, i.e., the intended result of
+the ‘insert-buffer’ function is obtained as a side effect.
+
+** Complete Definition of ‘beginning-of-buffer’
+Here we consider the actual full definition of the ‘beginning-of-buffer’
+function.  The implemented version of ‘beginning-of-buffer’ has functionality to
+take an integer argument between one and ten and then move point to that
+fraction of the way, measured in tenths, from the beginning of the buffer.
+
+*** Optional Arguments
+Unless stated otherwise, Lisp expects that a function with an argument in its
+function definition will be called with a value for that argument.  If that does
+not happen, the interpreter throws an error message that says, ‘Wrong number of
+arguments’.
+
+However, optional arguments are a feature of Lisp: a particular “keyword” is
+used to tell the interpreter that an argument is optional.  That keyword is
+‘&optional’.  In a function definition, if an argument follows the keyword
+‘&optional’, no value needs to be passed to that argument when the function is
+called.
+
+This is relevant to the function ‘beginning-of-buffer’, whose outline looks like
+this:
+
+#+begin_src emacs-lisp
+  (defun beginning-of-buffer (&optional arg)
+    "DOCUMENTATION..."
+    (interactive "P")
+    (or (IS-THE-ARGUMENT-A-CONS-CELL arg)
+        (and ARE-BOTH-TRANSIENT-MARK-MODE-AND-MARK-ACTIVE-TRUE)
+        (push-mark))
+    (let (DETERMINE-SIZE-AND-SET-IT)
+      (goto-char
+       (IF-THERE-IS-AN-ARGUMENT
+        FIGURE-OUT-WHERE-TO-GO
+        ELSE-GO-TO
+        (point-min))))
+    DO-NICETY)
+#+end_src
+
+The function resembles the ‘simplified-beginning-of-buffer’ funciton except that
+the ‘interactive’ expression has a ‘"P"’ as an argument and the ‘goto-char’
+call is followed by an if-then-else statement that figures out where to put the
+cursor if there is an argument that is not a cons cell (more on cons cells
+later).
+
+The ‘"P"’ in the ‘interactive’ expression tells Emacs to pass a prefix argument,
+if there is one, to the function in raw form.  A lowercase ‘"p"’ would cause the
+function to convert the prefix argument to a number.
+
+The true-or-false-test of the ‘if’ expression checks whether ‘arg’ has a
+non-‘nil’ value; if it does, the then-part of the ‘if’ expression is evaluated.
+Alternatively, should the function not be called with an argument, the value of
+‘arg’ defaults to ‘nil’ and the else-part of the ‘if’ expression is evaluated.
+The else-part is simply ‘point-min’, and when this is the outcome, the whole
+‘goto-char’ expression is ‘(goto-char (point-min))’, which is exactly how we
+formulated the ‘beginning-of-buffer’ function in its simplified form.
+
+*** ‘beginning-of-buffer’ with an Argument
+When ‘beginning-of-buffer’ of buffer is called with an argument, an expression
+is evaluated which calculates what value to pass to ‘goto-char’.  This
+expression looks as follows:
+
+#+begin_src emacs-lisp
+  (if (> (buffer-size) 10000)
+      ;; Avoid overflow for large buffer sizes!
+      (* (prefix-numeric-value arg)
+         (/ size 10))
+    (/
+     (+ 10
+        (*
+         size (prefix-numeric-value arg))) 10))
+#+end_src
+
+**** Disentangle ‘beginning-of-buffer’
+In skeletal form, the expression looks like this:
+
+#+begin_src emacs-lisp
+  (if (BUFFER-IS-LARGE)
+      DIVIDE-BUFFER-SIZE-BY-10-AND-MULTIPLY-BY-ARG
+    ELSE-USE-ALTERNATE-CALCULATION)
+#+end_src
+
+**** What Happens in a Large Buffer
+In ‘beginning-of-buffer’, the inner ‘if’ expression tests whether the size of
+the buffer exceeds 10,000 characters.  To do this, it uses the ‘>’ function and
+the computation of size that comes with the ‘let’ expression.  Then, this
+multiplication is performed:
+
+#+begin_src emacs-lisp
+  (*
+   (prefix-numeric-value arg)
+   (/ size 10))
+#+end_src
+
+The function ‘prefix-numeric-value’ returns the “numeric meaning of the raw
+prefix argument arg”.  This is because the value of ‘arg’ was captured by the
+‘interactive’ flag ‘"P"’, as a “raw prefix argument”.
+
+As a result, if the accessible portion of the buffer is deemed as large, the
+‘goto-char’ expression reads like this:
+
+#+begin_src emacs-lisp
+  (goto-char (* (prefix-numeric-value arg)
+                (/ size 10)))
+#+end_src
+
+**** What Happens in a Small Buffer
+If the buffer contains fewer than 10,000 characaters, a slightly different
+computation is performed.  It looks like this:
+
+#+begin_src emacs-lisp
+  (/
+   (+
+    10
+    (*
+     size
+     (prefix-numeric-value arg)))
+   10)
+#+end_src
+
+The integer issued from this computation is passed to ‘goto-char’ and the cursor
+is moved to that position.
+
+*** The Complete ‘beginning-of-buffer’
+Here is the complete text of the ‘beginning-of-buffer’ function definition:
+
+#+begin_src emacs-lisp
+  (defun beginning-of-buffer (&optional arg)
+    "Move point to the beginning of the buffer;
+       leave mark at previous position.
+       With \\[universal-argument] prefix,
+       do not set mark at previous position.
+       With numeric arg N,
+       put point N/10 of the way from the beginning.
+
+       If the buffer is narrowed,
+       this command uses the beginning and size
+       of the accessible part of the buffer.
+
+       Don't use this command in Lisp programs!
+       \(goto-char (point-min)) is faster
+       and avoids clobbering the mark."
+    (interactive "P")
+    (or (consp arg)
+        (and transient-mark-mode mark-active)
+        (push-mark))
+    (let ((size (- (point-max) (point-min))))
+      (goto-char (if (and arg (not (consp arg)))
+                     (+ (point-min)
+                        (if (> size 10000)
+                            ;; Avoid overflow for large buffer sizes!
+                            (* (prefix-numeric-value arg)
+                               (/ size 10))
+                          (/ (+ 10 (* size (prefix-numeric-value arg)))
+                             10)))
+                   (point-min))))
+    (if (and arg (not (consp arg))) (forward-line 1)))
+#+end_src
+
+** Review
+Here is a summary of the topics covered in this chapter.
+
+*** ‘or’
+Evaluate each argument in sequence and return the value of the first argument
+that is not ‘nil’; if none return a value that is not ‘nil’, return ‘nil’.
+
+*** ‘and’
+Evaluate each argument in sequence, and if any are ‘nil’, return ‘nil’; if none
+are ‘nil’, return the value of the last argument.
+
+*** &‘optional’
+A keyword used to indicate that an argument to a function definition is
+optional; this means that the function can be evaluated without the argument if
+desired.
+
+*** ‘prefix-numeric-value’
+Convert the raw prefix argument produced by ‘(interactive "P")’ to a numeric value.
+
+*** ‘forward-line’
+Move point forward to the beginning of the next line, or if the argument is
+greater than one, forward that many lines.  If it can’t move as far forward as
+it is supposed to, ‘forward-line’ goes forward as far as it can and then returns
+a count of the number of additional lines it was supposed to move but couldn’t.
+
+*** ‘erase-buffer’
+Delete the entore contents of the current buffer.
+
+*** ‘bufferp’
+Return ‘t’ if its argument is a buffer; oterwise return ‘nil’.
+
+** Exercise
+Write an interactive function with an optional argument that tests whether its
+argument, a number, is greater than or equal to, or else, less than the value of
+‘fill-column’, and tells you which, in a message.  However, if you do not pass
+an argument to the function, use 56 as a default value.
+
+#+begin_src emacs-lisp
+  (defun fill-column-compare (&optional number)
+    "Compares value of NUMBER with the value of `fill-column'."
+    (interactive "P")
+    (setq number
+          (if number
+              (prefix-numeric-value number)
+            56))
+    (if (> fill-column number)
+        (message "The number %d is lesser than the value of `fill-column' (%d)"
+                 number fill-column)
+      (message "The number %d is greater than or equal to the value of `fill-column' (%d)"
+               number fill-column)))
+#+end_src
+
 * Narrowing & Widening
 * car cdr & cons
 * Cutting & Storing Text
