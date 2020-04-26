@@ -1904,7 +1904,262 @@ exercise, you need to use a whole potpourri of functions, including
       (message "These are the first 60 characters in this buffer:\n%s"
                (buffer-substring-no-properties 1 60)))))
 #+end_src
-* car cdr & cons
+* ‘car’, ‘cdr’ & ‘cons’: Fundamental Functions
+In Lisp, ‘car’, ‘cdr’, and ‘cons’ are fundamental functions.  The ‘cons’
+function is used to construct lists, and the ‘car’ and ‘cdr’ functions are used
+to take them apart.
+
+** Strange Names
+The name of the ‘cons’ function is an abbreviation of the word “construct”.  On
+the other hand, the origins of the names for the ‘car’ and ‘cdr’ functions are
+less straightforward: ‘car’ is an acronym from the phrase “Contents of the
+Address part of the Register”; and ‘cdr’ (pronounced “could-er”) is an acronym
+from the phrase “Contents of the Decrement part of the Register”.  These phrases
+refer to specific pieces of hardware on the very early computer on which the
+original Lisp was developed.
+
+** ‘car’ and ‘cdr’
+The CAR of a list is the first element of that list.  Thus the CAR of the list
+‘'(rose violet daisy buttercup)’ is ‘rose’:
+
+#+begin_src emacs-lisp
+  (car '(rose violet daisy buttercup)) ; rose
+#+end_src
+
+#+RESULTS:
+: rose
+
+The CDR of a list is the /rest/ of the list (i.e., anything /beyond/ its first
+element).  Thus, while the CAR of the list ‘'(rose violet daisy buttercup)’ is
+‘rose’, the rest of the list, the value returned by the ‘cdr’ function, is
+‘'(violet daisy buttercup)’:
+
+#+begin_src emacs-lisp
+  (cdr '(rose violet daisy buttercup)) ;; (violet daisy buttercup)
+#+end_src
+
+#+RESULTS:
+| violet | daisy | buttercup |
+
+Both ‘car’ and ‘cdr’ are “non-destructive”: they do not change the object to
+which they apply.
+
+When undertaking a list of lists, car will return the first element of its
+argument, itslef a list:
+
+#+begin_src emacs-lisp
+  (car '((lion tiger cheetah)
+         (gazelle antelope zebra)
+         (whale dolphin seal))) ;; (lion tiger cheetah)
+#+end_src
+
+#+RESULTS:
+| lion | tiger | cheetah |
+
+In the example above, the rest of the list would be a list of lists as
+well:
+
+#+begin_src emacs-lisp
+  (cdr '((lion tiger cheetah)
+         (gazelle antelope zebra)
+         (whale dolphin seal)))  ;; ((gazelle antelope zebra) (whale dolphin seal))
+#+end_src
+
+#+RESULTS:
+| gazelle | antelope | zebra |
+| whale   | dolphin  | seal  |
+
+** ‘cons’
+The ‘cons’ function constructs lists; it performs the reverse operation of ‘car’
+and ‘cdr’.  For example, ‘cons’ can be used to make a four element list from the
+three element list, ‘'(fir oak, maple)’:
+
+#+begin_src emacs-lisp
+  (cons 'pine '(fir oak maple)) ;; (pine fir oak maple)
+#+end_src
+
+#+RESULTS:
+| pine | fir | oak | maple |
+
+Just like ‘car’ and ‘cdr’, ‘cons’ is non-destructive: the original list is /not/
+modified; rather, a /new/ one is constructed.
+
+*** Build a List
+‘cons’ must have a list to attach to.  If a list is being built from nothing, an
+empty list has to be provided to ‘cons’.  Here is a series of ‘cons’ expressions
+that build up a list of flowers:
+
+#+begin_src emacs-lisp
+  (cons 'buttercup nil) ;; (buttercup)
+  (cons 'daisy '(buttercup)) ;; (daisy buttercup)
+  (cons 'violet '(daisy buttercup)) ;; (violet daisy buttercup)
+  (cons 'rose '(violet daisy buttercup)) ;; (rose violet daisy buttercup)
+#+end_src
+
+*** Find the Length of a List: ‘length’
+The number of elements of a list can be found by using the Lisp function
+‘length’:
+
+#+begin_src emacs-lisp
+  (length '(buttercup)) ; 1
+  (length '(daisy buttercup)) ; 2
+  (length (cons 'violet '(daisy buttercup))) ; 3
+#+end_src
+
+‘length’ will also return the number of elements in the empty list:
+
+#+begin_src emacs-lisp
+  (length ()) ; 0
+#+end_src
+
+#+RESULTS:
+: 0
+
+** ‘nthcdr’
+The ‘nthcdr’ function is associated with the ‘cdr’ function.  It returns the
+result of applying cdr N times to a list:
+
+#+begin_quote
+(nthcdr N LIST)
+
+Take cdr N times on LIST, return the result.
+#+end_quote
+
+Thus, the two following examples return the same list:
+
+#+begin_src emacs-lisp
+  (cdr (cdr '(pine fir oak maple))) ;; (oak maple)
+  (nthcdr 2 '(pine fir oak maple)) ;; (oak maple)
+#+end_src
+
+Using the original four element list, here is what happens when various numeric
+arguments are passed to ‘nthcdr’, including zero, one and five:
+
+#+begin_src emacs-lisp
+  ;; Leave the list as it was.
+  (nthcdr 0 '(pine fir oak maple)) ;; (pine fir oak maple)
+
+  ;; Return a copy without the first element.
+  (nthcdr 1 '(pine fir oak maple)) ;; (fir oak maple)
+
+  ;; Return a copy without the first three elements.
+  (nthcdr 3 '(pine fir oak maple)) ;; (maple)
+
+  ;; Return a copy devoid of ALL elements.
+  (nthcdr 5 '(pine fir oak maple)) ; nil
+#+end_src
+
+** ‘nth’
+The ‘nthcdr’ takes the CDR of a list repeatedly.  The ‘nth’ function takes the
+CAR of the result returned by ‘nthcdr’: it returns the Nth element of the list.
+
+#+begin_quote
+(nthcdr N LIST)
+
+Take cdr N times on LIST, return the result.
+#+end_quote
+
+Thus, if it were not defined in C for speed, the definition of ‘nth’ would be:
+
+#+begin_src emacs-lisp
+  (defun nth (n list)
+    "Returns the Nth element of LIST.
+  N counts from zero.  If LIST is not that long, nil is retured."
+    (car (nthcdr n list)))
+#+end_src
+
+The ‘nth’ function returns a single element of a list.
+
+Note that the elements are numbered from zero, not one.  That is to say, the CAR
+of the first element of a list is the /zeroth/ element:
+
+#+begin_src emacs-lisp
+  (nth 0 '("one" "two" "three")) ; "one"
+  (nth 1 '("one" "two" "three")) ; "two"
+#+end_src
+
+Just like ‘nthcdr’ and ‘cdr’, ‘nth’ is non-destructive; it does /not/ change the
+original list.  (This is in contrast with the ‘setcar’ and ‘setcdr’ functions.)
+
+** ‘setcar’
+The ‘setcar’ and ‘setcdr’ functions /set/ the CAR and the CDR of a list to new
+values.  Unlike ‘car’ and ‘cdr’, they do change the original list.  To see how
+this works, consider the following exercise:
+
+#+begin_src emacs-lisp
+  ;; Define variable `animals'
+  (setq animals '(antelope giraffe lion tiger)) ;; (antelope giraffe lion tiger)
+
+  ;; Set (destructively) the first element of the list pointed to by `animals' to `hippopotamus'
+  (setcar animals 'hippopotamus)
+
+  ;; The symbol `animals' now points to a different list
+  animals ;; (hippopotamus giraffe lion tiger)
+#+end_src
+
+Initially, the variable ‘animals’ was set to point to the list ‘'(antelope
+giraffe lion tiger)’.  The ‘setcar’ command destructively set its first element
+to ‘hippopotamus’ (it was previously ‘antelope’).  In effect, the list pointed
+to by the symbol ‘animals’ was changed in memory.  Its first element was
+replaced from ‘antelope’ to ‘hippopotamus’.
+
+** ‘setcdr’
+The ‘setcdr’ function is similar to the ‘setcar’ function, except that the
+function replaces the /second and subsequent/ elements of a list rather than its
+first element.  It is exemplified in the following snippet:
+
+#+begin_src emacs-lisp
+  ;; Define variable `domesticated-animals'
+  (setq domesticated-animals '(horse cow sheep goat)) ;; (horse cow sheep goat)
+
+  ;; Set (destructively) the second to last elements of the list point to by
+  ;; `domesticated-animals' to the list '(cat dog)
+  (setcdr domesticated-animals '(cat dog))
+
+  ;; The symbol `domesticated-animals' now points to a different list
+  domesticated-animals ;; (horse cat dog)
+#+end_src
+
+Initially, the variable ‘domesticated-animals’ was set to point to the list
+‘'(horse cow sheep goat)’.  The ‘setcdr’ command destructively set its second to
+last elements to the list ‘'(cat dog)’ (it was previously ‘'(cow sheep goat)’).
+In effect, the list pointed to by the symbol ‘domesticated-animals’ was changed
+in memory.  Its second to last element were replaced from ‘'(cow sheep goat)’ to
+‘'(cat dog)’.
+
+** Exercise
+Construct a list of four birds by evaluating several expressions with ‘cons’.
+Find out what happens when you ‘cons’ a list onto itself.  Replace the first
+element of the list of four birds with a fish.  Replace the rest of that list
+with a list of other fish.
+
+#+begin_src emacs-lisp
+  ;; Construct a list of four birds by evaluating several expressions with
+  ;; `cons'
+  (setq birds (cons 'parrot
+                    (cons 'owl
+                          (cons 'hummingbird
+                                (cons 'finch nil)))))
+
+  ;; `birds' points to a list of four elements
+  birds ;; (parrot owl hummingbird finch)
+
+  ;; What happens if one `cons' a list onto itself?
+  (cons birds birds) ;; ((parrot owl hummingbird finch) parrot owl hummingbird
+  ;; finch)
+
+  ;; Replace the first element of the list of four birds with a fish
+  (setcar birds 'salmon)
+
+  ;; The first element of `birds' has been replaced
+  birds  ;; (salmon owl hummingbird finch)
+
+  ;; Replace the rest of `birds' with a list of other fish
+  (setcdr birds '(tuna shark trout))
+
+  ;; The second to last element of `birds' have been replaced
+  birds  ;; (salmon tuna shark trout)
+#+end_src
 * Cutting & Storing Text
 * List Implementation
 * Yanking
