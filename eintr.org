@@ -1663,7 +1663,7 @@ this:
     DO-NICETY)
 #+end_src
 
-The function resembles the ‘simplified-beginning-of-buffer’ funciton except that
+The function resembles the ‘simplified-beginning-of-buffer’ function except that
 the ‘interactive’ expression has a ‘"P"’ as an argument and the ‘goto-char’
 call is followed by an if-then-else statement that figures out where to put the
 cursor if there is an argument that is not a cons cell (more on cons cells
@@ -1794,7 +1794,7 @@ that is not ‘nil’; if none return a value that is not ‘nil’, return ‘n
 Evaluate each argument in sequence, and if any are ‘nil’, return ‘nil’; if none
 are ‘nil’, return the value of the last argument.
 
-*** &‘optional’
+*** ‘&optional’
 A keyword used to indicate that an argument to a function definition is
 optional; this means that the function can be evaluated without the argument if
 desired.
@@ -1836,6 +1836,74 @@ an argument to the function, use 56 as a default value.
 #+end_src
 
 * Narrowing & Widening
+Narrowing is a feature of Emacs that makes it possible to focus on a specific
+part of a buffer, and edit it without accidentally changing other parts.
+
+** Narrowing Advantages
+Potentially destructive editing operations like search & replace or the use of
+macros only affect the narrowed part of the buffer.
+
+The concept of narrowing is also useful from the perspective of the Lisp
+interpreter.  For instance, the ‘what-line’ function disables narrowing while it
+executes, but then restores the narrowing to what it was when it exits.  On the
+other hand, the ‘count-lines’ function uses narrowing to restrict itself to just
+the portion of the buffer in which it is interested and then restores the
+previous situation.
+
+** The ‘save-restriction’ Special Form
+The ‘save-restriction’ special form is used to keep track of whatever narrowing
+is in effect, if any.  When the Lisp interpreter meets with ‘save-restriction’,
+it executes the code in the body of the ‘save-restriction’ expression, and then
+undoes any changes to narrowing that the code caused.
+
+Note that, when both ‘save-excursion’ and ‘save-restriction’ are used, one right
+after the other, the ‘save-excursion’ should be used outermost.  If they are
+written in reverse order, Emacs may fail to record narrowing in the buffer to
+which it switches after calling ‘save-excursion’.  Thus, when invoked together,
+‘save-excursion’ and ‘save-restriction’ should be written like this:
+
+#+begin_src emacs-lisp
+  (save-excursion
+    (save-restriction
+      BODY...))
+#+end_src
+
+** ‘what-line’
+The ‘what-line’ command returns the number of the line in which the cursor is
+located.  The function illustrates the use of the ‘save-restriction’ and
+‘save-excursion’ instructions.  Here is the original text of the function:
+
+#+begin_src emacs-lisp
+  (defun what-line ()
+    "Print the current line number (in the buffer) of point."
+    (interactive)
+    (save-restriction
+      (widen)
+      (save-excursion
+        (beginning-of-line)
+        (message "Line %d"
+                 (1+ (count-lines 1 (point)))))))
+#+end_src
+
+** Exercise
+Write a function that will display the first sixty characaters of the current
+buffer, even if you have narrowed the buffer to its latter half so that the
+first line is inaccessible.  Restore point, mark, and narrowing.  For this
+exercise, you need to use a whole potpourri of functions, including
+‘save-restriction’, ‘widen’, ‘goto-char’, ‘point-min’, ‘message’, and
+‘buffer-substring’.
+
+#+begin_src emacs-lisp
+(defun gtms-top-sixty ()
+  "Return the first sixty characters of the current buffer,
+  regardless of the narrowing status of the buffer."
+  (interactive)
+  (save-excursion
+    (save-restriction
+      (widen)
+      (message "These are the first 60 characters in this buffer:\n%s"
+               (buffer-substring-no-properties 1 60)))))
+#+end_src
 * car cdr & cons
 * Cutting & Storing Text
 * List Implementation
