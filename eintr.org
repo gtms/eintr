@@ -2826,6 +2826,93 @@ appropriate message.
 #+end_src
 
 * List Implementation
+Lists are stored using a series of pairs of pointers.  In the series, the first
+pointer in each pair points to the next pair, or to the symbol ‘nil’, which
+marks the end of the list.  A pointer itself is the electronic address of what
+is pointed to.  Hence, a list is kept as a series of electronic addresses.
+
+** Lists Diagrammed
+
+For example, the list ‘(rose violet buttercup)’ has three elements,
+‘rose’, ‘violet’, and ‘buttercup’.  In the computer, the electronic
+address of ‘rose’ is recorded in a segment of computer memory along with
+the address that gives the electronic address of where the atom ‘violet’
+is located; and that address (the one that tells where ‘violet’ is
+located) is kept along with an address that tells where the address for
+the atom ‘buttercup’ is located.
+
+   This sounds more complicated than it is and is easier seen in a
+diagram:
+
+         ___ ___      ___ ___      ___ ___
+        |___|___|--> |___|___|--> |___|___|--> nil
+          |            |            |
+          |            |            |
+           --> rose     --> violet   --> buttercup
+
+When a variable is set to a list with a function such as ‘setq’, it stores the
+address of the first element in the variable.  Thus, evaluation of the
+expression:
+
+#+begin_src emacs-lisp
+  (setq bouquet '(rose violet buttercup))
+#+end_src
+
+creates the following set of pointers:
+
+     bouquet
+      |
+      |    --------------       ---------------       ----------------
+      |   | car   | cdr  |     | car    | cdr  |     | car     | cdr  |
+       -->| rose  |   o------->| violet |   o------->| butter- |  nil |
+          |       |      |     |        |      |     | cup     |      |
+           --------------       ---------------       ----------------
+
+Interestingly, the evaluation of the following expression:
+
+#+begin_src emacs-lisp
+  (setq flowers (cdr bouquet))
+#+end_src
+
+produces the following:
+
+     bouquet        flowers
+       |              |
+       |     ___ ___  |     ___ ___      ___ ___
+        --> |   |   |  --> |   |   |    |   |   |
+            |___|___|----> |___|___|--> |___|___|--> nil
+              |              |            |
+              |              |            |
+               --> rose       --> violet   --> buttercup
+
+** Symbols as a Chest of Drawers
+Symbols can be be represented as a chest of drawers.  Drawers contain pointers
+(directions) to each of its composing elements, namely:
+
++ pointer to symbol name;
++ pointer to symbol definition;
++ pointer to variable value; and
++ pointer to property list.
+
+** Exercise
+Set ‘flowers’ to ‘violet’ and ‘buttercup’.  Cons two more flowers to this list
+and set this new list to ‘more-flowers’.  Set the CAR of ‘flowers’ to a fish.
+What does the ‘more-flowers’ list now contain?
+
+#+begin_src emacs-lisp
+  ;; Set `flowers' to `violet' and `buttercup'
+  (setq flowers '(violet buttercup))
+
+  ;; Cons two more flowers to this list and set the new list to `more-flowers'
+  (setq more-flowers (cons 'jasmine (cons 'rose flowers)))
+
+  ;; Set the car of flowers to a fish
+  (setcar flowers 'goldfish)
+
+  ;; What does the more-flowers now contain?
+  more-flowers ;; (jasmine rose goldfish buttercup)
+#+end_src
+
 * Yanking
 * Loops & Recursion
 * Regexp Search
