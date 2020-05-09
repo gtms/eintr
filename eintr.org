@@ -2832,7 +2832,6 @@ marks the end of the list.  A pointer itself is the electronic address of what
 is pointed to.  Hence, a list is kept as a series of electronic addresses.
 
 ** Lists Diagrammed
-
 For example, the list ‘(rose violet buttercup)’ has three elements,
 ‘rose’, ‘violet’, and ‘buttercup’.  In the computer, the electronic
 address of ‘rose’ is recorded in a segment of computer memory along with
@@ -2841,14 +2840,15 @@ is located; and that address (the one that tells where ‘violet’ is
 located) is kept along with an address that tells where the address for
 the atom ‘buttercup’ is located.
 
-   This sounds more complicated than it is and is easier seen in a
-diagram:
+This sounds more complicated than it is and is easier seen in a diagram:
 
+#+begin_src ditaa
          ___ ___      ___ ___      ___ ___
         |___|___|--> |___|___|--> |___|___|--> nil
           |            |            |
           |            |            |
            --> rose     --> violet   --> buttercup
+#+end_src
 
 When a variable is set to a list with a function such as ‘setq’, it stores the
 address of the first element in the variable.  Thus, evaluation of the
@@ -2860,6 +2860,7 @@ expression:
 
 creates the following set of pointers:
 
+#+begin_src ditaa
      bouquet
       |
       |    --------------       ---------------       ----------------
@@ -2867,6 +2868,7 @@ creates the following set of pointers:
        -->| rose  |   o------->| violet |   o------->| butter- |  nil |
           |       |      |     |        |      |     | cup     |      |
            --------------       ---------------       ----------------
+#+end_src
 
 Interestingly, the evaluation of the following expression:
 
