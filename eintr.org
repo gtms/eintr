@@ -2876,6 +2876,7 @@ Interestingly, the evaluation of the following expression:
 
 produces the following:
 
+#+begin_src ditaa
      bouquet        flowers
        |              |
        |     ___ ___  |     ___ ___      ___ ___
@@ -2884,6 +2885,7 @@ produces the following:
               |              |            |
               |              |            |
                --> rose       --> violet   --> buttercup
+#+end_src
 
 ** Symbols as a Chest of Drawers
 Symbols can be be represented as a chest of drawers.  Drawers contain pointers
@@ -2914,6 +2916,67 @@ What does the ‘more-flowers’ list now contain?
 #+end_src
 
 * Yanking
+The interactive ‘yank’ command (‘C-y’) is used to retrieve text back from the
+kill ring into the position at point.  Should a ‘C-y’ command be immediately
+followed by a ‘M-y’ command (‘yank-pop’), the first element of the kill ring is
+replaced by the second element; successive invocations of ‘yank-pop’ replace the
+yanked text by the next element in the kill ring.  When the last element of the
+kill ring is reached, the next ‘yank-pop’ invocation brings back the first
+ocurrence in the kill ring and the cycle is repeated (hence the “kill ring”).
+
+** Kill Ring Overview
+The kill ring is a list of textual strings.
+
+Three functions are used for bringing text back from the kill ring: ‘yank’,
+which is bound to ‘C-y’ by default; ‘yank-pop’, which is bound to ‘M-y’ by
+default; and ‘rotate-yank-pointer’, which is used by the two other functions.
+
+These functions refer to the kill ring through a variable called the
+‘kill-ring-yank-pointer’.  Indeed, the insertion code for both the ‘yank’ and
+‘yank-pop’ function was, up to Emacs 22:
+
+#+begin_src emacs-lisp
+  (insert (car kill-ring-yank-pointer))
+#+end_src
+
+** The ‘kill-ring-yank-pointer’ Variable
+The ‘kill-ring-yank-pointer’ is documented as “the tail of the kill ring whose
+car is the last thing yanked”.
+
+Interestingly, while both variables ‘kill-ring’ and ‘kill-ring-yank-pointer’ are
+/pointers/, inasmuch as they each point to elements of a cons cell (that may be
+part of a list), while the former is usually invoked to refer to the /list/ it
+points to, the latter is usually invoked for the /position/ it points to in a
+list.
+
+** Exercises with ‘yank’ and ‘nthcdr’
+*** Exercise 10.1
+Using ‘C-h v’ (‘describe-variable’), look at the value of your kill ring.  Add
+several items to your kill ring; look at its value again.  Using ‘M-y’
+(‘yank-pop’), move all the way around the kill ring.  How many items were there
+in your kill ring?  Find the value of ‘kill-ring-max’.  Was your kill ring full,
+or could you have kept more blocks of text within it?
+
+#+begin_src emacs-lisp
+  kill-ring-max ; 60
+#+end_src
+
+*** Exercise 10.2
+Using ‘nthcdr’ and ‘car’, construct a series of expressions to return the first,
+second, third, and fourth elements of a list.
+
+#+begin_src emacs-lisp
+  ;; Define list LST
+  (setq lst '(one two three four five six))
+
+  ;; Generalize an expression to return the first to the fourth element in list
+  ;; LST
+  (car (nthcdr 0 lst)) ; one
+  (car (nthcdr 1 lst)) ; two
+  (car (nthcdr 2 lst)) ; three
+  (car (nthcdr 3 lst)) ; four
+#+end_src
+
 * Loops & Recursion
 * Regexp Search
 * Counting Words
