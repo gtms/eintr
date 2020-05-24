@@ -2980,6 +2980,595 @@ second, third, and fourth elements of a list.
 #+end_src
 
 * Loops & Recursion
+Emacs Lisp has two primary ways to evaluate one or more expressions repeatedly:
+one uses a ‘while’ loop, and the other uses “recursion”.
+
+** ‘while’
+The template for a ‘while’ expression is as follows:
+
+#+begin_src emacs-lisp
+  (while TRUE-OR-FALSE-TEST
+    BODY...)
+#+end_src
+
+*** Looping with ‘while’
+The craft of writing a ‘while’ loop consists of choosing a mechanism such that
+the true-or-false-test returns true just the number of times that one wants the
+subsequent expressions to be evaluated, and then have the test return ‘nil’.
+This means that a ‘while’ expression will /always/ return ‘nil’; it is evaluated
+for the side effects enclosed in its body form.
+
+*** A ‘while’ Loop and a List
+A template for a ‘while’ loop that uses the ‘cdr’ function repeatedly to cause
+the true-or-false-test to eventually fail would look like this:
+
+#+begin_src emacs-lisp
+  (while TEST-WHETHER-LIST-IS-EMPTY
+    BODY...
+    SET-LIST-TO-CDR-OF-LIST)
+#+end_src
+
+*** An Example: ‘print-elements-of-list’
+the ‘print-elements-of-list’ function illustrates a ‘while’ loop with a list:
+
+#+begin_src emacs-lisp
+  (defun print-elements-of-list (list)
+    "Print each element of LIST on a line of its own."
+    (while list
+      (print (car list))
+      (setq list (cdr list))))
+#+end_src
+
+Now, evaluating the function with a list fed to it results in printing each
+element of the list in its own line in the minibuffer; when the last iteration
+of ‘while’ is ran, the function then returns ‘nil’:
+
+#+begin_src emacs-lisp
+  (setq animals '(gazelle giraffe lion tiger))
+
+  (print-elements-of-list animals)
+#+end_src
+
+*** A Loop with an Incrementing Counter
+Another way to control the number of iterations of a ‘while’ loop is to write
+the first argument as a test that returns false when the desired number of
+repetitions is complete.  This requires a counter—an expression that keeps track
+of how many times the loop repeats itself.
+
+*** Details of an Incrementing Loop
+The template for a ‘while’ loop controlled by an incrementing counter would look
+like this:
+
+#+begin_src emacs-lisp
+  SET-COUNT-TO-INITIAL-VALUE
+  (while (< count desired-number)       ; true-or-false-test
+    BODY...
+    (setq count (1+ count)))            ; incrementer
+#+end_src
+
+Here is an example of a function employing a ‘while’ loop to compute the sum of
+all integers between two given numbers:
+
+#+begin_src emacs-lisp
+  (defun gtms-sum-numbers-in-interval (first last)
+    "Returns the sum of all numbers between FIRST and LAST."
+    (let ((result first)
+          (accumulator (1+ first)))
+      (while (<= accumulator last)
+        (setq result (+ result accumulator))
+        (setq accumulator (1+ accumulator)))
+      result))
+#+end_src
+
+**** Incrementing Example
+We will consider two case scenarios to compute the sum of a list of consecutive
+natural numbers (say, from one to seven):
+
+1. Starting with the smallest number, and add up the list in sequence;
+2. Starting with the largest number and add the list down.
+
+**** The Parts of the Function Definition
+The ‘gtms-sum-numbers-in-interval’ starts by locally binding two variables: the
+‘results’ variable is initially bound to the the first number in the interval;
+and the ‘accumulator’ variable is bound to the following number.  The ‘result’
+variable will incrementally hold the cumulative sum of all numbers in the
+interval.  The ‘accumulator’ variable will both serve as the summand term to be
+added to the result over each iteration and as the counter that tracks when to
+exit the ‘while’ loop.
+
+The ‘while’ loop ensues.  For each iteration of the ‘while’ loop, the ‘result’
+variable is updated by adding to it the current value of ‘accumulator’.  The
+value of ‘accumulator’ is then incremented by one, prompting the next iteration
+of the loop.  These steps will repeat, adding each successive number until
+‘accumulator’ exceeds the last number (controlled by the ‘while’ test ~(<=
+accumulator last)~), at which point the program exits the loop.
+
+Once the ‘while’ loop is concluded, the value of ‘result’ is evaluated and
+returned, as the cumulative sum of all numbers between the two provided
+arguments.
+
+**** Putting the Function Definition Together
+In outline, the function will look like this:
+
+#+begin_src emacs-lisp
+  (defun NAME-OF-FUNCTION (ARGUMENT-LIST)
+    "DOCUMENTATION..."
+    (let (VARLIST)
+      (while (TRUE-OR-FALSE-TEST)
+        BODY-OF-WHILE...)
+      ...))                             ; Need final expression here.
+#+end_src
+
+*** Loop with a Decrementing Counter
+Alternatively, the ‘while’ loop could be written so that the test determines
+whether a counter is greater than zero.  The template of a decrementing ‘while’
+loop looks like this:
+
+#+begin_src emacs-lisp
+  (while (> counter 0)                  ; true-or-false-test
+    BODY...
+    (setq counter (1- counter)))        ; decrementer
+#+end_src
+
+**** Decrementing Example
+Here is the ‘gtms-sum-numbers-in-interval’ written with a decrementer loop:
+
+#+begin_src emacs-lisp
+  (defun gtms-sum-numbers-in-interval-decrement (first last)
+    "Returns the sum of all numbers between FIRST and LAST."
+    (let ((result last)
+          (decrementer (1- last)))
+      (while (>= decrementer first)
+        (setq result (+ result decrementer))
+        (setq decrementer (1- decrementer)))
+      result))
+#+end_src
+
+**** The Parts of the Function Definition
+There are two differences between the decrement function definition and the
+original one.  The first concerns the starting point: instead of adding numbers
+up from the first number in the interval, we begin by adding the last number to
+the second to last, all the way down to the first number.  Consequentely, we
+replace the ‘accumulator’ variable by a ‘decrementer’ variable, which will both
+serve as the summand to update the ‘results’ variable, and as the tracker of
+when to exit the ‘while’ loop.  The ‘while’ loop will terminate when the
+condition ~(>= decrementer first)~ yields ‘nil’.
+
+**** Putting the Function Definition Together
+In brief, a properly written ‘while’ loop will consist of three parts:
+
+1. A test that returns false after the loop as repeated the intended number of
+   times.
+
+2. An expression that, when evaluated the intended number of times, will return
+   the desired result.
+
+3. An expression to update the value passed to the true-or-false-test so that
+   the test fails once the loop has repeated itself the intended number of
+   times.
+
+** Save Your Time: ‘dolist’ and ‘dotimes’
+‘dolist’ and ‘dotimes’ are lisp macros that also provide for looping
+functionality.
+
+*** The ‘dolist’ Macro
+To reverse a list, one can use the ‘reverse’ function, such like this:
+
+#+begin_src emacs-lisp
+  (setq animals '(gazelle giraffe lion tiger))
+
+  (reverse animals)  ;; (tiger lion giraffe gazelle)
+#+end_src
+
+The same can be achieved with a ‘while’ loop:
+
+#+begin_src emacs-lisp
+  (defun reverse-list-with-while (list)
+    "Using `while', reverse the order of LIST."
+    (let (value)                        ; make sure list starts empty
+      (while list
+        (setq value (cons (car list) value))
+        (setq list (cdr list)))
+      value))
+
+  (reverse-list-with-while animals) ;; (tiger lion giraffe gazelle)
+#+end_src
+
+And here is how the ‘dolist’ macro would work to the same effect:
+
+#+begin_src emacs-lisp
+  (defun reverse-list-with-dolist (list)
+    "Using `dolist', reverse the order of LIST."
+    (let (value)                        ; make sure list starts empty
+      (dolist (element list value)
+        (setq value (cons element value)))))
+
+  (reverse-list-with-dolist animals) ;; (tiger lion giraffe gazelle)
+#+end_src
+
+The ‘dolist’ macro has the form:
+
+#+begin_src emacs-lisp
+  (dolist (VAR LIST [RESULT])
+    BODY...)
+#+end_src
+
+The ‘dolist’ sexp will loop over LIST, evaluating BODY with VAR bound to each
+CAR from LIST, in turn.  Then, it evaluates RESULT to get the returned value
+(defaulting to ‘nil’).
+
+*** The ‘dotimes’ Macro
+The ‘dotimes’ macro is similar to ‘dolist’, except that it loops a predefined
+number of times.
+
+For example, the following binds the numbers zero up to, but not including, the
+number three to the first argument, NUMBER, and then constructs a list of the
+three numbers.
+
+#+begin_src emacs-lisp
+  (let (value)
+    (dotimes (number 3 value)
+      (setq value (cons number value)))) ;; (2 1 0)
+#+end_src
+
+The ‘dotimes’ macro has the form:
+
+#+begin_src emacs-lisp
+  (dotimes (VAR COUNT [RESULT])
+    BODY...)
+#+end_src
+
+The ‘dotimes’ s-exp evaluates the BODY form with VAR bound to successive
+integers from 0, inclusive, to COUNT, exclusive.  Then it evaluates RESULT to
+get the returned value (defaulting to ‘nil’).
+
+** Recursion
+A recursive function contains code that tells the Lisp interpreter to call a
+program that runs exactly like itself, but with slightly different arguments.
+Each iteration of the code ran, while formally identical, represents a
+unique instance of the code.
+
+*** Building Robots: Extending the Metaphor
+A recursive function is a function that calls itself, causing the Lisp
+interpreter to run a different function with the same name that does the same
+job as the first, but with different arguments.  it is important that the
+arguments differ from one instance to the next; otherwise, the process will
+never stop.
+
+*** Parts of a Recursive Definition
+A recursive function typically contains a conditional expression which has three
+parts:
+
+1. A true-or-false-test that determines whether the function is called again,
+   here called the “do-again-test”.
+
+2. The name of the function.  When this name is called, a new instance of the function.
+
+3. An expression that returns a different value each time the function is
+   called, here called the “next-step-expression”.  Consequentely, the
+   argument(s) passed to the new instance of the function will be different from
+   that passed to the previous instance.  This causes the conditional
+   expression, the “do-again-test”, to test false after the intended number of
+   repetitions.
+
+A simple recursive pattern would look like this:
+
+#+begin_src emacs-lisp
+  (defun NAME-OF-RECURSIVE-FUNCTION (ARGUMENT-LIST)
+    "DOCUMENTATION..."
+    (if DO-AGAIN-TEST
+        BODY...
+      (NAME-OF-RECURSIVE-FUNCTION
+       NEXT-STEP-EXPRESSION)))
+#+end_src
+
+*** Recusion with a List
+Here is an example of a function that prints the elements of a list using
+recursion:
+
+#+begin_src emacs-lisp
+  (setq animals '(gazelle giraffe lion tiger))
+
+  (defun print-elements-recursively (list)
+    "Print each element of LIST on a line of its own.
+  Uses recursion."
+    (when list                          ; do-again-test
+      (print (car list))                ; body
+      (print-elements-recursively       ; recursive call
+       (cdr list))))                    ; next-step-expression
+
+  (print-elements-recursively animals)
+#+end_src
+
+*** Recursion in Place of a Counter
+The ‘gtms-sum-numbers-in-interval’ function can also be written recursively:
+
+#+begin_src emacs-lisp
+  (defun gtms-sum-numbers-in-interval-recursively (first last)
+        "Returns the sum of all numbers between FIRST and LAST."
+        (let ((result first)
+              (accumulator (1+ first)))
+          (if (> accumulator last)
+              result
+            (+ result
+               (gtms-sum-numbers-in-interval-recursively
+                accumulator last)))))
+#+end_src
+
+Note that the recursive form makes use of the previously defined ‘accumulator’
+variable to place a summation call from the /subsequent/ number to ‘first’ up to
+the ‘last’ on the stack.  This will iteratively place increasingly shallower
+calls to the function onto the stack until ‘accumulator’ exceeds ‘last’.  At
+this point, ‘result’ will be bound to ‘last’ itself (for the innermost call on
+the stack will take the form ~(gtms-sum-numbers-in-interval-recursively last
+last)~).  This value of ‘result’ will then be fed to the call seeking the
+addition of the second to last element in the interval and the ‘last’ one.  The
+value of ‘result’ will be concomitantly updated, and each previous number will
+be added to it as each stack call becomes solved—up until the original call.
+This means that this recursive formulation computes the sum /backwards/, from
+the ‘last’ to the ‘first’ number.
+
+*** Recursion Example Using ‘cond’
+The template of a ‘cond’ expression looks like this:
+
+#+begin_src emacs-lisp
+  (cond
+   CLAUSES...)
+#+end_src
+
+where each CLAUSE looks like ~(CONDITION BODY…)~.  The CONDITION is evaluated
+and, if the value is non-nil, the clause succeeds: the expressions in BODY are
+then evaluated and the last one’s value is the value of the ‘cond’ form.
+
+If a clause has one element, as in ~(CONDITION)~, then the ‘cond’ form returns
+CONDITION’s value, if that is non-nil.  If no clause succeeds, the ‘cond’ form
+returns ‘nil’.
+
+Written using a ‘cond’ form, the ‘gtms-sum-numbers-in-interval’ function would
+look like this:
+
+#+begin_src emacs-lisp
+  (defun gtms-sum-numbers-in-interval-using-cond (first last)
+    "Returns the sum of all numbers between FIRST and LAST."
+    (let ((result first)
+          (accumulator (1+ first)))
+      (cond ((> accumulator last) result)
+            ((<= accumulator last)
+             (+ result
+                (gtms-sum-numbers-in-interval-using-cond
+                 accumulator last))))))
+#+end_src
+
+In this example, the ‘cond’ form returns the value of ‘result’ when
+‘accumulator’ first exceeds ‘last’; otherwise, it proceeds to recursively call
+the function with ‘accumulator’ in place of ‘first’.
+
+*** Recursive Patterns
+Following are three common recursive patterns involving lists.
+
+**** Recursive Pattern: ‘every’
+In the ‘every’ recursive pattern, an action is performed in every element of a
+list.
+
+The pattern is:
+
++ If a list is empty, return ‘nil’.
++ Else, act on the CAR of the list:
+  - through a recursive call by the function on the CDR of the list;
+  - and, optionally, combine the acted on element, using ‘cons’, with the
+    results of acting on the rest.
+
+Here is an example:
+
+#+begin_src emacs-lisp
+  (defun square-each (numbers-list)
+    "Square each of a NUMBERS LIST, recursively."
+    (if (not numbers-list)
+        nil
+      (cons
+       (* (car numbers-list)
+          (car numbers-list))
+       (square-each (cdr numbers-list)))))
+
+  (square-each '(1 2 3)) ;; (1 4 9)
+#+end_src
+
+**** Recursive Pattern: ‘accumulate’
+In the ‘accumulate’ recursive pattern, an action is performed on every element
+of a list and the result of that action is accumulated with the results of
+performing the action on the other elements.
+
+The pattern is:
+
++ If a list is empty, return zero of some other constant.
++ Else, act on the CAR of the list:
+  - and combine that acted-on element (with a combining function) with
+  - a recursive call by the function on the CDR of the list.
+
+Here is an example:
+
+#+begin_src emacs-lisp
+  (defun add-elements (numbers-list)
+    "Add the elements of NUMBERS-LIST together."
+    (if (not numbers-list)
+        0
+      (+ (car numbers-list)
+         (add-elements (cdr numbers-list)))))
+
+  (add-elements '(1 2 3 4)) ; 10
+#+end_src
+
+**** Recursive Pattern: ‘keep’
+In the ‘keep’ recursive pattern, each element of a list is tested; the element
+is acted on and the results are kept only if the element meets a criterion.
+
+The pattern is:
+
++ If a list is empty, return ‘nil’.
++ Else, if the CAR of the list passes a test:
+  - act on that element and combine it, using ‘cons’ with
+  - a recursive call by the function on the CDR of the list.
++ Otherwise, if the CAR of the list fails the test:
+  - skip on that element, and
+  - recursively, call the function on the CDR of the list.
+
+Here is an example with ‘cond’:
+
+#+begin_src emacs-lisp
+  (defun keep-three-letter-words (word-list)
+    "Keep three letter words in WORD-LIST."
+    (cond
+     ;; First do-again-test: stop-condition
+     ((not word-list) nil)
+
+     ;; Second do-again-test: when to act
+     ((eq 3 (length (symbol-name (car word-list))))
+      ;; combine acted-on element with recursive call on shorter list
+      (cons (car word-list) (keep-three-letter-words (cdr word-list))))
+
+     ;; Third do-again-test: when to skip element;
+     ;; recursively call shorter list with next-step expression
+     (t (keep-three-letter-words (cdr word-list)))))
+
+  (keep-three-letter-words '(one two three four five six)) ;; (one two six)
+#+end_src
+
+*** Recursion without Deferments
+By design, recursive functions will defer the computation of the first
+instantiation until the second is returned, which in turn will be deferred until
+all the inner instantiations are completed.  This may severely tax computational
+resources (potentially leading, in Emacs Lisp, to C core dumps).
+
+*** No Deferment Solution
+In order to prevent deferred operations, one can write to a patternu that
+involves writing two function definitions, an initialization function and a
+helper function.  The initialization function sets up the job; the helper
+function does the job.
+
+Here is an example:
+
+#+begin_src emacs-lisp
+  (defun triangle-initialization (number)
+    "Return the sum of the numbers 1 through NUMBER inclusive.
+  This is the initialization component of a two function duo that uses recursion."
+    (triangle-recursive-helper 0 0 number))
+
+  (defun triangle-recursive-helper (sum counter number)
+    "Return SUM, using COUNTER, through NUMBER inclusive.
+  This is the helper component of a two function duo that uses recursion."
+    (if (> counter number)
+        sum
+      (triangle-recursive-helper (+ sum counter) ; sum
+                                 (1+ counter)    ; counter
+                                 number)))       ; number
+
+  (triangle-initialization 2) ; 3
+#+end_src
+
+** Looping Exercises
+*** Exercise 11.1
+Write a function similar to ‘triangle’ in which each row has a value which is a
+square of the row number.  Use a ‘while’ loop.
+
+#+begin_src emacs-lisp
+  (defun gtms-squared-triangle (number-of-rows)
+    "Add the square of the number of pebbles in each row of a triangle with NUMBER-OF-ROWS.
+  The first row has one pebble, the second row two pebbles, the
+  third row three pebbles, and so on."
+    (let ((total 0)
+          (row-number 1))
+      (while (<= row-number number-of-rows)
+        (setq total (+ total (* row-number row-number)))
+        (setq row-number (1+ row-number)))
+      total))
+
+  (gtms-squared-triangle 4) ; 30
+  (gtms-squared-triangle 7) ; 140
+#+end_src
+
+*** Exercise 11.2
+Write a function similar to ‘triangle’ that multiplies instead of adding the
+values.
+
+#+begin_src emacs-lisp
+  (defun gtms-multiplied-triangle (number-of-rows)
+    "Multiply the number of pebbles in each row of a triangle with NUMBER-OF-ROWS.
+  The first row has one pebble, the second row two pebbles,
+  the third row three pebbles, and so on."
+    (let ((total 1)
+          (row-number 1))
+      (while (<= row-number number-of-rows)
+        (setq total (* total row-number))
+        (setq row-number (1+ row-number)))
+      total))
+
+  (gtms-multiplied-triangle 4)
+  (gtms-multiplied-triangle 7) ; 5040
+#+end_src
+
+*** Exercise 11.3
+Rewrite these functions recursively.  Rewrite these functions using ‘cond’.
+
+**** Squared Triangle
+#+begin_src emacs-lisp
+(defun gtms-squared-triangle-init (number-of-rows)
+  "Add the square of the number of pebbles in each row of a triangle with NUMBER-OF-ROWS.
+The first row has one pebble, the second row two pebbles, the
+third row three pebbles, and so on."
+  (gtms-squared-triangle-helper 0 1 number-of-rows))
+
+(defun gtms-squared-triangle-helper (sum counter number-of-rows)
+  (cond ((> counter number-of-rows) sum)
+        ((<= counter number-of-rows)
+         (gtms-squared-triangle-helper (+ sum (* counter counter))
+                                  (1+ counter)
+                                  number-of-rows))))
+#+end_src
+
+**** Multiplied Triangle
+#+begin_src emacs-lisp
+  (defun gtms-multiplied-triangle-init (number-of-rows)
+    "Multiply the number of pebbles in each row of a triangle with NUMBER-OF-ROWS.
+  The first row has one pebble, the second row two pebbles, the
+  third row three pebbles, and so on."
+    (gtms-multiplied-triangle-helper 1 1 number-of-rows))
+
+  (defun gtms-multiplied-triangle-helper (product counter number-of-rows)
+    (cond ((> counter number-of-rows) product)
+          ((<= counter number-of-rows)
+           (gtms-multiplied-triangle-helper (* product counter)
+                                            (1+ counter)
+                                            number-of-rows))))
+#+end_src
+
+*** Exercise 11.4
+Write a function for Texinfo mode that creates an index entry at the beginning
+of a paragraph for every ‘@dfn’ within the paragraph.  (In a Texinfo file,
+‘@dfn’ marks a definition.)
+
+(Answer taken from [[https://github.com/RenWenshan/emacs-lisp-intro-solutions/blob/master/ch11.el][here]].)
+
+#+begin_src emacs-lisp
+  (defun gtms-create-index-for-dfn ()
+    "Create an index entry at the beginning of the paragraph for every `@dfn'."
+    (interactive)
+    (save-excursion
+      (mark-paragraph)
+      (save-restriction
+        (narrow-to-region (point) (mark))
+        (let (dfns)
+          (while (search-forward "@dfn" nil t)
+            (when (search-forward "{" nil t)
+              (let ((start (point)))
+                (when (search-forward "}" nil t)
+                  (forward-char -1)
+                  (let ((end (point)))
+                    (setq dfns (cons (buffer-substring start end)
+                                     dfns)))))))
+          (forward-paragraph -1)
+          (dolist (dfn (reverse dfns))
+            (insert (concat "@cindex " dfn "\n")))))))
+#+end_src
 * Regexp Search
 * Counting Words
 * Words in a defun
