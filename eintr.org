@@ -1904,6 +1904,7 @@ exercise, you need to use a whole potpourri of functions, including
       (message "These are the first 60 characters in this buffer:\n%s"
                (buffer-substring-no-properties 1 60)))))
 #+end_src
+
 * ‘car’, ‘cdr’ & ‘cons’: Fundamental Functions
 In Lisp, ‘car’, ‘cdr’, and ‘cons’ are fundamental functions.  The ‘cons’
 function is used to construct lists, and the ‘car’ and ‘cdr’ functions are used
@@ -3569,7 +3570,433 @@ of a paragraph for every ‘@dfn’ within the paragraph.  (In a Texinfo file,
           (dolist (dfn (reverse dfns))
             (insert (concat "@cindex " dfn "\n")))))))
 #+end_src
+
 * Regexp Search
+Regular expression searches are described in [[info:emacs#Regexps][Regular Expression Search]] (Emacs)
+as well as in [[info:elisp#Regular Expressions][Regular Expressions]] (elisp).  The [[https://www.emacswiki.org/emacs/RegularExpression][Emacs wiki entry on regular
+expressions]] is also a valuable resource to understand regexps in Emacs.  This
+[[https://www.youtube.com/watch?v=TxYGHjKBMUg][video by Protesilaos Stavrou]] higlights some very unique built-in functionality
+to perform text surgery in Emacs with regexps, namely the use of Emacs functions
+to manipulate text on string sets in regular expressions.
+
+** The Regular Expression for ‘sentence-end’
+The symbol ‘sentence-end’ is bound to the pattern that marks the end of a
+sentence.
+
+#+begin_src emacs-lisp
+    (sentence-end)" ; \\([.?!…‽][]\"'”’)}]*\\($\\|[  ]$\\|	\\|[  ][  ]\\)\\|[。．？！]+\\)[  	
+  ]*"
+#+end_src
+
+Two backslashes are required to escape a character in a regular expression in
+Emacs Lisp.  The first backslash quotes the following backslash; and the second
+indicates that the following character, is special.
+
+** The ‘re-search-forward’ Function
+The ‘re-search-forward’ function searches forward for a regular expression
+REGEXP.  Like ‘search-forward’, the ‘re-search-forward’ function takes four
+arguments:
+
+1. The first argument is the regular expression REGEXP that the function
+   searches for.  The regular expression will be a string between quotation
+   marks.
+
+2. The optional second argument, BOUND, limits how far the function will search;
+   it is specified as a position in the buffer.
+
+3. The optional third argument, NOERROR, specifies how the function responds to
+   failure: ‘nil’ as the third argument causes the function to signal an error
+   (and print a message) when the search fails; any other value causes it to
+   return ‘nil’ if the search fails and ‘t’ if the search succeeds.
+
+4. The optional fourth, COUNT, is the repeat count.  A negative repeat count
+   causes ‘re-search-forward’ to search backwards.
+
+The template for ‘re-search-forward’ looks like this:
+
+#+begin_src emacs-lisp
+  (re-search-forward "REGULAR-EXPRESSION"
+                     LIMIT-OF-SEARCH
+                     WHAT-TO-DO-IF-SEARCH-FAILS
+                     REPEAT-COUNT)
+#+end_src
+
+** ‘forward-sentence’
+The command to move the cursor forward a sentence is usually bound to the key
+command ‘M-e’.
+
+*** Complete ‘forward-sentence’
+Here is the code for ‘forward-sentence’, as of the time of writing of this book:
+
+#+begin_src emacs-lisp
+  (defun forward-sentence (&optional arg)
+    "Move forward to next end of sentence.  With argument, repeat.
+  With negative argument, move backward repeatedly to start of sentence.
+
+  The variable `sentence-end' is a regular expression that matches
+  ends of sentences.  Also, every paragraph boundary terminates
+  sentences as well."
+    (interactive "p")
+    (or arg (setq arg 1))
+    (let ((opoint (point))
+          (sentence-end (sentence-end)))
+      (while (< arg 0)
+        (let ((pos (point))
+              (par-beg (save-excursion (start-of-paragraph-text) (point))))
+          (if (and (re-search-backward sentence-end par-beg t)
+                   (or (< (match-end 0) pos)
+                       (re-search-backward sentence-end par-beg t)))
+              (goto-char (match-end 0))
+            (goto-char par-beg)))
+        (setq arg (1+ arg)))
+      (while (> arg 0)
+        (let ((par-end (save-excursion (end-of-paragraph-text) (point))))
+          (if (re-search-forward sentence-end par-end t)
+              (skip-chars-backward " \t\n")
+            (goto-char par-end)))
+        (setq arg (1- arg)))
+      (constrain-to-field nil opoint t)))
+#+end_src
+
+The function can take an optional numeric argument, ‘arg’.  Should it not
+receive any argument, ‘arg’ will be bound to 1.
+
+*** The ‘while’ loops
+Nested within a ‘let’ statement are two ‘while’ loops.  The second ‘while’ loop
+is fashioned as a decrementing loop, and its purpose is to move the point
+forward.  Since the ‘while’ loop is set to repeat ‘arg’ times, it will move
+point (‘goto-char’) to the ‘arg’th occurence of the ‘sentence-end’ regular
+expression.
+
+*** The Regular Expression Search
+The ‘re-search-forward’ call looks for the ‘sentence-end’ regular expression,
+bound by ‘par-end’.  Its third argument, ‘t’, specifies that, should a match not
+be found, the function should not throw an error (it will then fail silently by
+returning ‘nil’).  In the context of ‘forward-sentence’, this call is used for
+its side effect, which is to move point to the end of the occurrence found.
+
+If ‘re-search-forward’ found a match for its regular expression, it will return
+a value of true, causing the then-part of its enclosing ‘if’ expression to
+trigger: ‘(skip-chars-backward " \t\n")’.  This expression moves backwards over
+any blank spaces, tabs or carriage returns until a printed character is found
+and then leaves point after that character.  Since point has already been moved
+to the end of the pattern that marks the end of the sentence, this action leaves
+point right afte rthe closing printed character of the sentence, which is
+usually a period.
+
+Alternatively, should the ‘re-search-forward’ call fail, the function returns
+‘nil’, causing the else-part of its enclosing ‘if’ statement to trigger:
+‘(goto-char par-end)’.  This will move point to the end of the paragraph.
+
+** ‘forward-paragraph’: a Goldmine of Functions
+The ‘forward-paragraph’ function moves point forward to the end of the
+paragraph.  It makes use of a number of relevant functions, including ‘let*’,
+‘match-beginning’, and ‘looking-at’.
+
+The ‘forward-paragraph’ function must account for fill prefixes.  A fill prefix
+consists of a string of characters that are repeated at the beginning of each
+line.  They are mode-specific conventions that carry a special meaning within a
+paragraph, such like ‘;;; ’, which in Lisp mode are used to introduce a
+paragraph comment; or four blank spaces, which in Text mode are used to create
+an indented paragraph.
+
+*** Shortened ‘forward-paragraph’ Function Definition
+Outlined, the ‘forward-paragraph’ function looks like this:
+
+#+begin_src emacs-lisp
+  (defun forward-paragraph (&optional arg)
+    "DOCUMENTATION..."
+    (interactive "p")
+    (or arg (setq arg 1))
+    (let*
+        (VARLIST)
+      (while (and (< arg 0) (not (bobp))) ; backward-moving-code
+        ...
+        (while (and (> arg 0) (not (eobp)))) ; forward-moving-code
+        ...
+        )))
+#+end_src
+
+*** The ‘let*’ Expression
+The ‘let*’ special form behaves like ‘let’, except that Emacs sets each variable
+in sequence, with reference of the latter variables to the former ones.
+
+In the ‘let*’ expression of ‘forward-paragraph’, Emacs binds a total of seven
+variables: ‘opoint’, ‘fill-prefix-regexp’, ‘parstart’, ‘parsep’, ‘sp-parstart’,
+‘start’, and ‘found-start’.
+
+Noticeably, the variable ‘fill-prefix-regexp’ is set to the value returned by
+evaluating the following list:
+
+#+begin_src emacs-lisp
+  (and fill-prefix
+       (not (equal fill-pre ""))
+       (not paragraph-ignore-fill-prefix)
+       (regexp-quote fill-prefix))
+#+end_src
+
+The ‘and’ special form returns ‘nil’ should one of its arguments be ‘nil’;
+otherwise it returns the value of its last argument.  The result of successfully
+evaluating this ‘and’ expression is that ‘fill-prefix-regexp’ will be bound to
+the value of fill-prefix as modified by the ‘regexp-quote’ function.  Otherwise,
+the variable will be set to ‘nil’.
+
+*** The Forward Motion ‘while’ Loop
+The second part of the ‘let*’ deals with the forward motion.  It repeats itself
+so long as the value of ‘arg’ is greater than zero.  The ‘while’ loop looks like
+this:
+
+#+begin_src emacs-lisp
+  ;; going forwards and not at the end of the buffer
+  (while (and (> arg 0) (not (eobp)))
+    ;; between paragraphs
+    ;; Move forward over separator lines...
+    (while (and (not (eobp))
+                (progn (move-to-left-margin) (not (eobp)))
+                (looking-at parsep))
+      (forward-line 1))
+    ;; This decrements the loop
+    (unless (eobp) (setq arg (1- arg)))
+    ;; ... and one more line.
+    (forward-line 1)
+
+    (if fill-prefix-regexp
+        ;; There is a fill prefix; it overrides parstart;
+        ;; we go forward line by line
+        (while (and (not (eobp))
+                    (progn (move-to-left-margin) (not eobp))
+                    (not (looking-at parsep))
+                    (looking-at fill-prefix-regexp))
+          (forward-line 1))
+
+      ;; There is no fill prefix;
+      ;; we go forward character by character
+      (while (and (re-search-forward sp-parstart nil 1)
+                  (not (looking-at parsep))
+                  (looking-at fill-prefix-regexp))
+        (forward-line 1))
+
+      ;; There is no fill prefix; it overrides parstart;
+      ;; we go forward line by line
+      (while (and (not (eobp))
+                  (progn (move-to-left-margin) (not (eobp)))
+                  (not (looking-at parsep))
+                  (looking-at fill-prefix-regexp))
+        (forward-line 1))
+
+      ;; There is no fill prefix;
+      ;; we go forward character by character
+      (while (and (re-search-forward sp-parstart nil 1)
+                  (progn (setq start (match-beginning 0))
+                         (goto-char start)
+                         (not (eobp)))
+                  (progn (move-to-left-margin)
+                         (not (looking-at parsep)))
+                  (or (not (looking-at parstart))
+                      (and use-hard-newlines
+                           (not (get-text-property (1- start) 'hard)))))
+        (forward-char 1))
+
+      ;; and if there is no fill prefix and if we are not at the end, go to
+      ;; whatever was found in the regular expression search for sp-parstart
+      (if (< (point) (point-max))
+          (goto-char start))))
+#+end_src
+
+The function ‘looking-at’ returns ‘t’ if the text after point matches the
+regular expression given as its argument.
+
+The ‘match-beginning’ function returns the position of the text matched by the
+last search.  Its argument (SUBEXP, a number), specifies which parenthesized
+expression in the last regular expression to consider.  The returned value is
+‘nil’ if the SUBEXPth pair didn’t match, or if there was less than SUBEXP pairs.
+A value of zero for SUBEXP returns the position that is the start of the text
+matched by the most recent search.
+
+** Review
+Here is a brief summary of some recently introduced functions in the last chapters.
+
+*** ‘while’
+Repeatedly evaluates the body of the expression so long as the first element of
+the body tests true.  Then return ‘nil’.  The expression is evaluated for its
+side effects.
+
+*** ‘re-search-forward’
+Searches for a pattern; if the pattern is found, move point to the position just
+after it.  Takes four arguments, like ‘search-forward’:
+
+1. A regular expression that specifies the pattern to search for.  This argument
+   must be quoted in quotation marks.
+   
+2. Optionally, the limit of the search (given as a position in the bufffer).
+   
+3. Optionally, what to to if the search fails.  Either returns ‘nil’ or an error message.
+
+4. Optionally, how many times to repeat the search; if negative, the search goes backwards.
+
+*** ‘let*’
+Bind some variables locally to particular values, and then evaluate the
+remaining arguments, returning the value of the last one.  While binding the
+local variables, use the local values of variables bound earlier, if any.
+
+*** ‘match-beginning’
+Returns the position of the start of the text found by the last regular
+expression search.
+
+*** ‘looking-at’
+Returns ‘t’ (for true) if the text after point matches the argument, a regular
+expression.
+
+*** ‘eobp’
+Returns ‘t’ (for true) if point is at the end of the accessible part of the
+buffer (see [[Narrowing & Widening][Narrowing & Widening]]).
+
+** Exercises
+*** Exercise 12.1
+Write a function to search for a regular expression that matches two or more
+blank lines in sequence.
+
+#+begin_src emacs-lisp
+  (defun gtms-two-or-more-blanks ()
+    "Searches for instances of two or more consecutive blank
+  lines and leaves point after the last one."
+    (interactive)
+    (re-search-forward "\\(^\n\\)\\{2,\\}" nil t))
+#+end_src
+
+*** Exercise 12.2
+Write a function to search for duplicated words, such as “the the”.  See [[info:Emacs#regexps][Syntax
+of Regular Expressions]] (Emacs) for information on how to write a regular
+expression to match a string that is composed of two identical halves.  See the
+[[info:eintr#the-the][‘the-the’ Duplicated Words Function]] in the appendix for an example of how to
+approach this problem.
+
+#+begin_src emacs-lisp
+  (defun gtms-the-the ()
+    "Searches for the nearest instance of consecutive duplicated words and leaves point after the second one."
+    (interactive)
+    (re-search-forward "\\(\\<\\w+\\>\\)\\s-+\\1" nil t))
+#+end_src
+
+** Syntax of Regular Expressions
+This section consists of notes taken from the section “[[info:emacs#regexps][Syntax of Regular
+Expressions]]”, from the Emacs manual.
+
+Regular expressions have a syntax in which a few characters are “special
+constructs” and the rest are “ordinary”.  An ordinary character matches itself
+and nothing else.
+
+The special characters are ~$^.*+?[\~.  The character ~]~ is special if it ends
+a character alternative.  The character ~-~ is special if inside a character
+alternative.  Any other character appearing in a regular expression is ordinary,
+unless a ~\~ precedes it.  (When you use regular expressions in a Lisp program,
+each ~\~ must be doubled.)
+
+Following is a list of special characters.
+
+*** ‘.’ (Period)
+A special character that matches /any/ single character except a newline.  For
+example, the regular expression ~a.b~ matches any three-character string that
+begins with ~a~ and ends with ~b~.
+
+*** ‘*’
+The asterisk is not a construct by itself; it is a postfix operator that means
+to match the preceding regular expression repetitively any number of times, as
+many times as possible.  Thus, ~o*~ matches any number of ~o~ ’s, including no
+~o~ ’s.
+
+~*~ always applies to the /smallest/ possible preceding expression.  Thus, ~fo*~
+has a repeating ~o~, not a repeating ~fo~.  It matches ~f~, ~fo~, ~foo~, and so
+on.
+
+*** ‘+’
+~+~ is a postfix operator, similar to ~*~, except that it must match the
+preceding expression at least once.  Thus, ~ca+r~ matches the strings ~car~ and
+~caaaar~ but not the string ~cr~, whereas ~ca*r~ matches all three strings.
+
+*** ‘?’
+~?~ is a postfix operator, similar to ~*~, except that it can match the
+preceding expression either once or not at all.  Thus, ~ca?r~ matches ~car~ or
+~cr~, and nothing else.
+
+*** ‘*?’, ‘+?’ and ‘??’
+These are the non-“greedy” variants of the operators above.  The regular
+operators ~*~, ~+~ and ~?~ match as much as they can, as long as the overall
+regexp can still match.  With a following ~?~, they will match as little as
+possible.
+
+Thus, both ~ab*~ and ~ab*?~ can match the string ~a~ and the string ~abbbb~; but
+if you try to match them both against the text ~abbb~, ~ab*~ will match it all
+(the longest valid match), while ~ab*?~ will match just ~a~ (the shortest valid match).
+
+*** ‘\{N\}’
+This postfix operator specifies N repetitions—that is, the preceding regular
+expression must match exactly N times in a row.  For example, ~x\{4\}~ matches
+the string ~xxxx~ and nothing else.
+
+*** ‘\{N,M\}’
+This postfix operator specifies between N and M repetitions—that is, the
+preceding regular expression must match at least N times, but no more than M
+times.  If M is omitted, then there is no upper limit, but the preceding regular
+expression must match at least N times.
+
+- ~\{0,1\}~ is equivalent to ~?~.
+- ~\{0,\}~ is equivalent to ~*~.
+- ~\{1,\}~ is equivalent to ~+~.
+
+*** ‘[…]’
+This construct defines a “character set”, beginning with ~[~ and terminated by
+~]~.
+
+In the simplest case, the characters between the two brackets are what this set
+can match.  Thus, ~[ad]~ matches either one ~a~ or one ~d~, and ~[ad]*~ matches
+any string composed of just ~a~ ’s and ~d~ ’s (including the empty string).  It
+follows that ~c[ad]*r~ matches ~cr~, ~car~, ~cdr~, ~caddaar~, and so on.
+
+You can also include character ranges in a character set, by writing the
+starting and ending characters with a ~-~ between them.  Thus, ~[a-z]~ matches
+any lower-case ASCII letter.  Ranges may be intermixed freely with individual
+characters, as in ~[a-z$%.]~, which matches any lower-case ASCII letter /or/
+~$~, ~%~ or period.
+
+You can also include certain special “character classes” in a character set.  A
+~[:~ and balancing ~:]~ enclose a character class inside a character
+alternative.  For instance, ~[[:alnum:]]~ matches any letter or digit.  See the
+“[[info:elisp#Char Classes][Character Classes]]” section of the elisp manual, for a list of character
+classes.
+
+To include a ~]~ in a character set, you must make it the first character.  For
+example, ~[]a]~ matches ~]~ or ~a~.  To include a ~-~, write ~-~ as the first or
+last character of the set, or put it after a range.  Thus, ~[]-]~ matches both
+~]~ and ~-~.
+
+To include ~^~ in a set, put it anywhere but at the beginning of the set.  (At
+the beginning, it complements the set—see below.)
+
+*** ‘[^…]’
+The sequence ~[^~ begins a “complemented character set”, which matches any
+character except the ones specified.  Thus, ~[^a-z0-9A-Z]~ matches all
+characters /except/ ASCII letters and digits.  In a character set, ~^~ is not
+special /unless/ it is the first character of the set.
+
+*** ‘^’
+The caret character, ‘^’, is a special character that matches the empty string,
+but only at the beginning of a line in the text being matched.  Otherwise it
+fails to match anything.  Thus, ~^foo~ matches a ~foo~ that occurs at the
+beginning of a line.
+
+*** ‘$’
+The dollar sign character, ~$~, is similar to ~^~, but matches only at the end
+of the line.  Thus, ~x+$~ matches a string of one ~x~ or more at the end of a
+line.
+
+*** ‘\’
+The backslash character, ~\~, has two functions: it quotes the special
+characters (including ~\~), and it introduces additional special constructs.
+
+Because ~\~ quotes special characters, ~\$~ is a regular expression that matches
+only ~$~, and ~\[~ is a regular expression that matches only ~[~, and so on.
+
 * Counting Words
 * Words in a defun
 * Readying a Graph
