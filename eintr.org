@@ -3998,6 +3998,262 @@ Because ~\~ quotes special characters, ~\$~ is a regular expression that matches
 only ~$~, and ~\[~ is a regular expression that matches only ~[~, and so on.
 
 * Counting Words
+** The ‘count-words-example’ Function
+Following are examples of function implementation to count words in Emacs.  They
+seek to emulate the standard Emacs ‘count-words-region’:
+
+#+begin_src emacs-lisp
+ (defun count-words-region (start end &optional arg)
+   "Count the number of words in the region.
+ If called interactively, print a message reporting the number of
+ lines, words, and characters in the region (whether or not the
+ region is active); with prefix ARG, report for the entire buffer
+ rather than the region.
+
+ If called from Lisp, return the number of words between positions
+ START and END."
+   (interactive (if current-prefix-arg
+                    (list nil nil current-prefix-arg)
+                  (list (region-beginning) (region-end) nil)))
+   (cond ((not (called-interactively-p 'any))
+          (count-words start end))
+         (arg
+          (count-words--buffer-message))
+         (t
+          (count-words--message "Region" start end))))
+#+end_src
+
+*** Designing ‘count-words-example’
+The function will consist of a ‘while’ loop that starts at the beginning of the
+active region, then will use a regexp to move point from the boundary end of one
+word to the next, keeping count of each jump.  The ‘while’ loop ends at the end
+of the region, at which point a message with the count of words is returned to
+the user.
+
+Thus, the regexp must capture one or more word constituent characters followed,
+optionally, by one or more characters that are /not/ word constituents.  The
+regular expression for this is ~\w+\W*~.
+
+The buffer’s syntax table determines which characters are deemed word
+constituents and which are not.  Thus, the search expression for the function
+should look like this:
+
+#+begin_src emacs-lisp
+  (re-search-forward "\\w+\\W*")
+#+end_src
+
+And here is a first draft of the function:
+
+#+begin_src emacs-lisp
+  ;; First version; has bugs!
+  (defun count-words-example (beginning end)
+    "Print number of words in the region.
+    Words are defined as at least one word-constituent character followed by at least one character that is not a word-constituent.  The buffer's syntax table determines which characters these are."
+    (interactive "r")
+    (message "Counting words in region...")
+
+  ;;; 1. Set up appropriate conditions.
+    (save-excursion
+      (goto-char beginning)
+      (let ((count 0))
+
+  ;;; 2. Run the while loop.
+        (while (< (point) end)
+          (re-search-forward "\\w+\\W*")
+          (setq count (1+ count)))
+
+  ;;; 3. Send a message to the user.
+        (cond ((zerop count)
+               (message
+                "The region does NOT have any words."))
+              ((= 1 count)
+               (message
+                "The region has one word."))
+              (t
+               (message
+                "The region has %d words." count))))))
+#+end_src
+
+This version of the function does work, but not in all circumstances.
+
+*** The Whitespace Bug in ‘count-words-example’
+Two issues plague the current incantation of the function.  The first has to do
+with the fact that if there is a word /beyond/ the region, it will still be
+counted as point will only be verified to be greater than the end of the region
+on the next ‘while’ check.  The second is related to what happens when there are
+no words within the region: the function throws an error.
+
+To fix these, we need to pass a bounding parameter to the ‘re-search-forward’
+call, as well as an argument that instructs the function to return ‘nil’ when no
+words are found:
+
+#+begin_src emacs-lisp
+  (re-search-forward "\\w+\\W*" end t)
+#+end_src
+
+However, by returning ‘nil’ when the region has no words, ‘re-search-forward’
+will not move point and the next ‘while’ condition will still be true, causing
+the loop to never end.  To avoid this, we encolse the ‘while’ condition within
+an ‘and’ statement:
+
+#+begin_src emacs-lisp
+  (and (< (point) end) (re-search-forward "\\w+\\W*" end t))
+#+end_src
+
+With these changes, the final version of the function looks as follows:
+
+#+begin_src emacs-lisp
+    ;;; Final version: while
+    (defun count-words-example (beginning end)
+      "Print number of words in the region."
+      (interactive "r")
+      (message "Counting words in region ... ")
+
+    ;;; 1. Set up appropriate conditions.
+      (save-excursion
+        (let ((count 0))
+          (goto-char beginning)
+
+    ;;; 2. Run the while loop.
+          (while (and (< (point) end)
+                      (re-search-forward "\\w+\\W*" end t))
+            (setq count (1+ count)))
+
+    ;;; 3. Send a message to the user.
+          (cond ((zerop count)
+                 (message
+                  "The region does NOT have any words."))
+                ((= 1 count)
+                 (message
+                  "The region has 1 word."))
+                (t
+                 (message
+                  "The region has %d words." count))))))
+
+
+#+end_src
+
+** Count Words Recursively
+We now consider how to write the same function using a ‘while’ loop with
+recursion.  This will be achieved with two functions: one, the recursive
+function, performs the count; the other, the wrapper or main function, will be
+invoked by the user, make a call to the recursive function, and return a
+formatted message with the word count in the region.
+
+The main body of this iteration of ‘count-words-example’ is similar to the first
+version and binds the result of the call to the recursive function within the
+context of a ‘let’ statement:
+
+#+begin_src emacs-lisp
+  (defun count-words-example (beginning end)
+    "Print number of words in the region.
+
+      Words are defined as at least one word-consituent character
+      followed by at least one character that is not a
+      word-constituent.  The buffer's syntax table determines which
+      characters these are."
+    (interactive "r")
+
+  ;;; 1. Set up appropriate conditions.
+    (message "Counting words in region ... ")
+    (save-excursion
+      (goto-char beginning)
+
+  ;;; 2. Count the words.
+      (let ((count (recursive-count-words end)))
+
+  ;;; 3. Send a message to the user.
+        (cond ((zerop count)
+               (message
+                "The region does NOT have any words."))
+              ((= 1 count)
+               (message
+                "The region has 1 word."))
+              (t
+               (message
+                "The region has %d words." count))))))
+#+end_src
+
+A recursive function has at least three parts: the do-again-test, the
+next-step-expresssion, and the recursive call.
+
+In this vein, the ‘recursive-count-words’ will look like this:
+
+#+begin_src emacs-lisp
+    (defun recursive-count-words (region-end)
+      "Number of words between point and REGION-END."
+
+    ;;; 1. do-again-test
+      (if (and (< (point) region-end)
+               (re-search-forward "\\w+\\W*" region-end t))
+
+    ;;; 2. then-part: the recursive call
+          (1+ (recursive-count-words region-end))
+
+    ;;; 3. else-part
+        0))
+#+end_src
+
+** Exercise
+Using a ‘while’ loop, write a function to count the number of punctiation marks
+in a region—period, comma, semicolon, colon, exclamation mark, and question
+mark.  Do the same using recursion.  Do the same with recursion.
+
+*** With ‘while’ Loop
+
+#+begin_src emacs-lisp
+  (defun gtms-count-punctuation (beginning end)
+    "Counts the number of puntuation marks in the region.
+
+  (Period, comma, semicolon, colon, exclamation mark and question
+  mark are punctiation marks."
+    (interactive "r")
+    (save-excursion
+      (let ((count 0))
+        (goto-char beginning)
+        (while (and (< (point) end)
+                    (re-search-forward "[\\.,;:!?]" end t))
+          (setq count (1+ count)))
+        (cond ((zerop count)
+               (message
+                "The region does not have any punctuation marks!"))
+              ((= 1 count)
+               (message
+                "The region has one punctuation mark."))
+              (t
+               (message
+                "The region has %d punctuation marks." count))))))
+#+end_src
+
+*** With Recursion
+
+#+begin_src emacs-lisp
+  (defun gtms-count-punctuation-recursive-wrapper (beginning end)
+    "Counts the number of puntuation marks in the region.
+
+  (Period, comma, semicolon, colon, exclamation mark and question
+  mark are punctiation marks."
+    (interactive "r")
+    (save-excursion
+      (goto-char beginning)
+      (let ((count (gtms-count-punctuation-recursive end)))
+        (cond ((zerop count)
+               (message
+                "The region does not have any punctuation marks!"))
+              ((= 1 count)
+               (message
+                "The region has one punctuation mark."))
+              (t
+               (message
+                "The region has %d punctuation marks." count))))))
+
+  (defun gtms-count-punctuation-recursive (region-end)
+      "Number of punctuation marks between point and REGION-END."
+      (if (and (< (point) region-end)
+               (re-search-forward "[\\.,;:!?]" region-end t))
+          (1+ (gtms-count-punctuation-recursive region-end))
+        0))
+#+end_src
 * Words in a defun
 * Readying a Graph
 * Emacs Initialization
