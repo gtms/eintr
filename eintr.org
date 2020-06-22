@@ -4203,7 +4203,7 @@ mark.  Do the same using recursion.  Do the same with recursion.
 
 #+begin_src emacs-lisp
   (defun gtms-count-punctuation (beginning end)
-    "Counts the number of puntuation marks in the region.
+    "Counts the number of punctuation marks in the region.
 
   (Period, comma, semicolon, colon, exclamation mark and question
   mark are punctiation marks."
@@ -4212,7 +4212,13 @@ mark.  Do the same using recursion.  Do the same with recursion.
       (let ((count 0))
         (goto-char beginning)
         (while (and (< (point) end)
-                    (re-search-forward "[\\.,;:!?]" end t))
+                    (re-search-forward "\\s." end t)) ; Note that this
+                                                            ; regular expression
+                                                            ; could be replaced
+                                                            ; by "[[:punct:]]";
+                                                            ; this would however
+                                                            ; match parentheses
+                                                            ; as well.
           (setq count (1+ count)))
         (cond ((zerop count)
                (message
@@ -4229,7 +4235,7 @@ mark.  Do the same using recursion.  Do the same with recursion.
 
 #+begin_src emacs-lisp
   (defun gtms-count-punctuation-recursive-wrapper (beginning end)
-    "Counts the number of puntuation marks in the region.
+    "Counts the number of punctuation marks in the region.
 
   (Period, comma, semicolon, colon, exclamation mark and question
   mark are punctiation marks."
@@ -4250,11 +4256,421 @@ mark.  Do the same using recursion.  Do the same with recursion.
   (defun gtms-count-punctuation-recursive (region-end)
       "Number of punctuation marks between point and REGION-END."
       (if (and (< (point) region-end)
-               (re-search-forward "[\\.,;:!?]" region-end t))
+               (re-search-forward "\\s." region-end t))
           (1+ (gtms-count-punctuation-recursive region-end))
         0))
 #+end_src
+
 * Words in a defun
+The next chapters will generalise the use of our function to count words to
+count (and plot) the number of symbols within Emacs functions.
+
+** Divide and Conquer
+The task at hand will be divided in five steps:
+
+1. Write a function to count the words in one function definition.  This
+   includes the problem of handling symbols as well as words.
+
+2. Write a function to list the number of words in eahc function in a file.
+   This function can use ‘count-words-in-defun’ function.
+
+3. Write a function to list the number of words in each function in each of
+   several files.  This entails automatically finding the various files,
+   switching to them, and counting the words in the definitions within them.
+
+4. Write a function to convert the list of numbers that created in step three to
+   form what will be suitable in a graph.
+
+5. Write a function to print the results in a graph.
+
+** What to Count?
+The regexp we used in ‘count-words-example’, ~"\\w+\\W*"~, is not suitable to
+capture symbols in a function definition.  This leads us to consider the Emacs
+Lisp syntax, in particular what constitutes a word or a symbol in the language.
+
+** What Constitutes a Word or Symbol?
+To have the regexp of ‘count-words-example’ correctly match defun symbols, we
+need to modify it to match word constituent characters interspersed with symbol
+characters, such as the hyphen.  In addition, we need to modify the second part
+to optionally match characters that are not white-space, optionally followed by
+non-white-space characters.  This yields the following regular expression:
+
+#+begin_src emacs-lisp
+"\\(\\w+\\|\\s_\\)+\\S-*\\s-*"
+#+end_src
+
+** The ‘count-words-in-defun’ Function
+Here is the interactive version of the ‘count-words-defun’:
+
+#+begin_src emacs-lisp
+  ;;; Interactive version.
+  (defun count-words-in-defun ()
+    "Return the number of words and symbols in a defun."
+    (beginning-of-defun)
+    (let ((count 0)
+          (end (save-excursion (end-of-defun) (point))))
+      (while
+          (and (< (point) end)
+               (re-search-forward
+                "\\(\\w\\|\\s_\\)+\\S-*\\s-*"
+                end t))
+        (setq count (1+ count)))
+      count))
+
+  (defun count-words-defun ()
+    "Number of words and symbols in a function definition."
+    (interactive)
+    (message
+     "Counting words and symbols in funtion definition ... ")
+    (let ((count (count-words-in-defun)))
+      (cond
+       ((zerop count)
+        (message
+         "The definition does NOT have any words or symbols."))
+       ((= 1 count)
+        (message
+         "The definition has one word or symbol."))
+       (t
+        (message
+         "The definition has %d words or symbols." count)))))
+#+end_src
+
+We now need to extend the function’s functionality to count the numbers of words
+and symbols in several definitions within a single file.
+
+** Count Several ‘defuns’ Within a File
+For each file, we will collect the number of words or symbols for each function
+definition in a list like so:
+
+#+begin_src emacs-lisp
+  (goto-char (point-min))
+  (while (re-search-forward "^(defun" nil t)
+    setq lenghts-list
+    (cons (count-words-in-defun) lengths-list))
+#+end_src
+
+** Find a File
+To direct Emacs’s attention to the file containing the function definitions we
+aim to analyse, we do not need to change the actively set buffer (something that
+would be done if we resorted to the interactive functions ‘find-file’ and
+‘switch-to-buffer’).  Instead, we will use the functions ‘find-file-noselect’
+and ‘set-buffer’.
+
+** ‘length-list-file’ in Detail
+Here’s the function tasked with finding a file, ensuring that the point is
+located at the beginning of the file, moving point forward defun by defun, and
+retrieving the count of words and symbols in each defun:
+
+#+begin_src emacs-lisp
+  (defun lengths-list-file (filename)
+    "Return list of definitions' lengths within file FILENAME.
+  The returned list is a list of numbers.  Each number is the
+  number of words or symbols in one function definition."
+    (message "Working on `%s' ... " filename)
+    (save-excursion
+      (let ((buffer (find-file-noselect filename))
+            (lengths-list))
+        (set-buffer buffer)
+        (setq buffer-read-only t)
+        (widen)
+        (goto-char (point-min))
+        (while (re-search-forward "^(defun" nil t)
+          (setq lengths-list
+                (cons (count-words-in-defun) lengths-list)))
+        (kill-buffer buffer)
+        lengths-list)))
+#+end_src
+
+Here we run the function to count the number of words and symbols in each of the
+defuns included in the file debug.el.gz from the 26.3 GNU Emacs distribution:
+
+#+begin_src emacs-lisp
+  (lengths-list-file
+   "/usr/share/emacs/26.3/lisp/emacs-lisp/debug.el.gz")
+#+end_src
+
+#+RESULTS:
+| 76 | 26 | 135 | 33 | 112 | 78 | 24 | 155 | 33 | 94 | 44 | 18 | 38 | 41 | 41 | 18 | 72 | 24 | 38 | 38 | 110 | 26 | 29 | 100 | 49 | 42 | 304 | 149 | 476 |
+
+** Count Words in ‘defuns’ in Different Files
+We now aim to loop the call of ‘lengths-list-file’ across multiple files.
+Another ‘while’ loop or recursion will be needed for this.
+
+*** Determine the Lengths of ‘defuns’
+
+#+begin_src emacs-lisp
+  ;;; Use `while' loop.
+  (defun length-list-many-files (list-of-files)
+    "Return list of lengths of defuns in LIST-OF-FILES."
+    (let (lengths-list)
+
+  ;;; true-or-false-test
+      (while list-of-files
+        (setq lengths-list
+              (append
+               lengths-list
+
+  ;;; Generate a lengths' list.
+               (lengths-list-file
+                (expand-file-name (car list-of-files)))))
+
+  ;;; Make file' list shorter.
+        (setq list-of-files (cdr list-of-files)))
+
+  ;;; Return final value of lengths' list.
+      lengths-list))
+#+end_src
+
+The ‘expand-file-name’ function converts its filename argument NAME to an
+absolute path, and canonicalises it.  To achieve this, the function employes the
+name of the directory in which the function is called.
+
+*** The ‘append’ Function
+The ‘append’ function attaches one list to another.  Thus,
+
+#+begin_src emacs-lisp
+  (append '(1 2 3 4) '(5 6 7 8))
+#+end_src
+
+produces the list
+
+#+RESULTS:
+| 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
+
+Notice the contrast with ‘cons’,
+
+#+begin_src emacs-lisp
+  (cons '(1 2 3 4) '(5 6 7 8))
+#+end_src
+
+which produces the list
+
+#+RESULTS:
+| (1 2 3 4) | 5 | 6 | 7 | 8 |
+
+** Recursively Count Words in Different Files
+Following is the recursive version of ‘lengths-list-many-files’:
+
+#+begin_src emacs-lisp
+  (defun recursive-lengths-list-many-files (list-of-files)
+    "Return list of lengths of each defun on LIST-OF-FILES."
+    (if list-of-files
+        (append
+         (lengths-list-file
+          (expand-file-name (car list-of-files)))
+         (recursive-lengths-list-many-files
+          (cdr list-of-files)))))
+#+end_src
+
+To test the function, we can evaluate the following code:
+
+#+begin_src emacs-lisp
+  (cd "/usr/share/emacs/26.3/")
+
+  (recursive-lengths-list-many-files
+   '("./lisp/macros.el.gz"
+     "./lisp/mail/mailalias.el.gz"
+     "./lisp/makesum.el.gz"))
+#+end_src
+
+#+RESULTS:
+| 263 | 248 | 387 | 87 | 38 | 35 | 32 | 87 | 175 | 84 | 69 | 90 | 421 | 212 | 336 | 82 | 181 |
+
+** Prepare the Data for Display in a Graph
+The next task consists of preprocessing (binning and counting occurrences per
+ranged bin) the data list for plotting.
+
+*** Data for Display in Detail
+We will start by sorting the lengths' list first.
+
+*** Sorting Lists
+The ‘sort’ function takes two arguments, (1) the list to be sorted and (2) a
+predicate that determines whether the first of two list elements is less than
+the second.
+
+Typically, the ‘<’ function is used when sorting a numeric list.  For example,
+
+#+begin_src emacs-lisp
+  (sort '(4 8 21 17 33 7 21 7) '<)
+#+end_src
+
+Produces the following:
+
+#+RESULTS:
+| 4 | 7 | 7 | 8 | 17 | 21 | 21 | 33 |
+
+(Note that, in this example, both arguments are quoted so that the symbols are
+not evaluated before being passed to ‘sort’ as arguments.)
+
+Sorting the list returned by the ‘recursive-lengths-list-many-files’ function is
+straightforward; it uses the ‘<’ function:
+
+#+begin_src emacs-lisp
+  (cd "/usr/share/emacs/26.3/")
+
+  (sort
+   (recursive-lengths-list-many-files
+    '("./lisp/macros.el.gz"
+      "./lisp/mail/mailalias.el.gz"
+      "./lisp/makesum.el.gz"))
+   '<)
+#+end_src
+
+#+RESULTS:
+| 32 | 35 | 38 | 69 | 82 | 84 | 87 | 87 | 90 | 175 | 181 | 212 | 248 | 263 | 336 | 387 | 421 |
+
+*** Making a List of Files
+We now need a function to extract all the source files living within a
+directory.  We thus aim to create a function that will enable us to feed
+filenames to ‘recursive-lengths-list-many-files’ as a list that looks like this:
+
+#+begin_src emacs-lisp
+  ("./lisp/macros.el.gz"
+   "./lisp/mail/rmail.el.gz"
+   "./lisp/makesum.el.gz")
+#+end_src
+
+This ‘files-in-below-directory’ function must accomplish the following:
+
+  + Check to see whether it is looking at a filename that ends in ~.el.gz~; and
+    if so, add its name to a list.
+
+  + Check to see whether it is looking at a filename that is the name of a
+    directory; and if so,
+    
+    - Check to see whether it is looking at ~.~ or ~..~; and if so, skip it.
+      
+    - Or else, move into that directory and repeat the process.
+
+Here is the function:
+
+#+begin_src emacs-lisp
+  (defun files-in-below-directory (directory)
+    "List the `.el.gz' files in DIRECTORY and its sub-directories."
+    ;; Although the function will be used non-interactively, it will be easier to
+    ;; test if we make it interactive.  The directory will have a name such as
+    ;; "/usr/local/share/emacs/26.3/lisp".
+    (interactive "DDirectory name: ")
+    (let (el-files-list
+          (current-directory-list
+           (directory-files-and-attributes directory t)))
+      ;; while we are in the current directory
+      (while current-directory-list
+        (cond
+         ;; check to see whether filename ends in `el.gz' and, if so, add its name
+         ;; to a list.
+         ((equal ".el.gz" (substring (car (car current-directory-list)) -6))
+          (setq el-files-list
+                (cons (car (car current-directory-list)) el-files-list)))
+         ;; check whether filename is that of a directory
+         ((eq t (car (cdr (car current-directory-list))))
+          ;; decide whether to skip or recurse
+          (if
+              (equal "."
+                     (substring (car (car current-directory-list)) -1))
+              ;; then do nothing since filename is that of current or parent
+              ;; directory, "." or ".."
+              nil
+            ;; else descend into the directory and repeat the process
+            (setq el-files-list
+                  (append
+                   (files-in-below-directory
+                    (car (car current-directory-list)))
+                   el-files-list)))))
+        ;; move to the next filename in the list; this also shortens the list so
+        ;; the while loop eventually comes to an end
+        (setq current-directory-list (cdr current-directory-list)))
+      ;; return the filenames
+      el-files-list))
+#+end_src
+
+We can test the function by feeding it the base directory of all ~.el.gz~ source
+files in Emacs’s system installation:
+
+#+begin_src emacs-lisp
+  (length
+   (files-in-below-directory "/usr/share/emacs/26.3/lisp"))
+#+end_src
+
+#+RESULTS:
+: 1461
+
+*** Counting Function Definitions 
+The bins are defined by the list ‘top-of-ranges’ as follows:
+
+#+begin_src emacs-lisp
+     (defvar top-of-ranges
+      '(10  20  30  40  50
+        60  70  80  90 100
+       110 120 130 140 150
+       160 170 180 190 200
+       210 220 230 240 250
+       260 270 280 290 300)
+      "List specifying ranges for `defuns-per-range'.")
+#+end_src
+
+To parse the number of length observations in each bin, we will deploy the
+‘defuns-per-range’ function:
+
+#+begin_src emacs-lisp
+  (defun defuns-per-range (sorted-lengths top-of-ranges)
+    "SORTED-LENGTHS defuns in each TOP-OF-RANGES ranges."
+    (let ((top-of-range (car top-of-ranges))
+          (number-within-range 0)
+          defuns-per-range-list)
+
+      ;; Outer loop
+      (while top-of-ranges
+
+        ;; Inner loop
+        (while (and
+                ;; Need number for numeric test
+                (car sorted-lengths)
+                (< (car sorted-lengths) top-of-range))
+
+          ;; Count number of definitions within current range
+          (setq number-within-range (1+ number-within-range))
+          (setq sorted-lengths (cdr sorted-lengths)))
+
+        ;; Exit inner loop but remain within outer loop
+
+        (setq defuns-per-range-list
+              (cons number-within-range defuns-per-range-list))
+        (setq number-within-range 0)      ; Reset count to zero
+
+        ;; Move to next range
+        (setq top-of-ranges (cdr top-of-ranges))
+        ;; Specify next top of range value
+        (setq top-of-range (car top-of-ranges)))
+
+      ;; Exit outer loop and count the number of defuns larger the largest
+      ;; `top-of-range' value
+      (setq defuns-per-range-list
+            (cons
+             (length sorted-lengths)
+             defuns-per-range-list))
+
+      ;; Return a list of the number of definitions within each range, smallest to
+      ;; largest
+      (nreverse defuns-per-range-list)))
+#+end_src
+
+We can test the function by evaluating the following code:
+
+#+begin_src emacs-lisp
+  ;; (Shorter list than we will use later.)
+  (setq top-of-ranges
+        '(110 120 130 140 150
+              160 170 180 190 200))
+
+  (setq sorted-lengths
+        '(85 86 110 116 122 129 154 176 179 200 265 300 300))
+
+  (defuns-per-range sorted-lengths top-of-ranges)
+#+end_src
+
+#+RESULTS:
+| 2 | 2 | 2 | 0 | 0 | 1 | 0 | 2 | 0 | 0 | 4 |
 * Readying a Graph
 * Emacs Initialization
 * Debugging
