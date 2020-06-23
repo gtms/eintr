@@ -4828,6 +4828,186 @@ Write a line graph version of the graph printing functions.
 #+end_src
 
 * Emacs Initialization
+GNU Emacs is mostly written in Emacs Lisp; this means that by writing
+expressions in Emacs Lisp it is possible to change or extend Emacs.
+
+** Specifying Variables using ‘defcustom’
+The macro ‘defcustom’ declares its first argument, ~SYMBOL~, as a customizable
+variable (it should not be quoted).  The following argument, ~STANDARD~, is an
+expression specifying the varaible’s standard value.  It should not be quoted.
+Following the documentation string are the optional keyword/value argument
+pairs.  They should take the form ~[KEYWORD VALUE]…~
+
+** Keymaps
+Emacs uses “keymaps” to record which keys call which commands.  The command
+‘global-set-key’ sets the keybinding for a single command in all parts of Emacs,
+specifying the keybinding in ‘current-global-map’.
+
+Mode-specific keymaps are bound using the ‘define-key’ function, which takes a
+specific keymap as an argument, as well as the key and the command to be bound.
+
+Customization of keybindings is detailed in the section “[[info:Emacs#Key Bindings][Customizing Key
+Bindings]]” section of the Emacs manual.
+
+*** Customizing Key Bindings
+Emacs commands are Lisp functions whose definitions provide for interactive
+use.  A “key sequence” (“key” for short) is a sequence of “input events” that
+have a meaning as a unit.  Input events include characters, function keys, and
+mouse buttons—all the forms of input a computer can receive.
+
+Since most modes define their key bindings, activating a mode might override a
+user’s custom key bindings.  A small number of keys are reserved for
+user-defined bindings, and should, by convention, not be used by modes.  The
+reserved key sequences are those consisting of the prefix ~C-c~ followed by a
+letter (either upper of lower case), and function keys ~<F5>~ through ~<F9>~
+without modifiers.
+
+**** Keymaps
+Emacs commands are Lisp functions whose definitions provide for interactive
+use.
+
+A “key sequence” (“key” for short) is a sequence of “input events” that have a
+meaning as a unit.  Input events include characters, function keys, and mouse
+buttons—all the forms of input a computer can receive.  A key sequence acquires
+its meaning from its “binding”, which conveys the command that is invoked.  The
+bindings between key sequences and command functions are recorded in data
+structures called “keymaps”.
+
+The “global” keymap is the most important keymap because it is always in effect.
+The global keymap defines keys for Fundamental mode; most of these definitions
+are common to most or all major modes.  Each major or minor mode can have its
+own keymap which overrides the global definitions of some keys.
+
+**** Prefix Keymaps
+Internally, Emacs records only single events in each keymap.  Interpreting a key
+sequence of multiple events involves a chain of keymaps: the first keymap gives
+a definition for the first event, which is another keymap; which is used to look
+up the second event in the sequence, and so on.  Thus, a prefix key such as
+~C-x~ or ~<ESC>~ has its own keymap, which holds the definition for the event
+that immediately follows that prefix.
+
+Thus, the binding of ~C-x~ is the symbol ‘Control-X-prefix’, whose function
+definition is the keymap for ~C-x~ commands.  The definitions of ~C-c~, ~C-x~,
+~C-h~, and ~<ESC>~ as prefix keys appear in the global map, so these prefix keys
+are always available.
+
+Some prefix keymaps are stored in variables with names:
+
++ ‘ctl-x-map’ is the variable name for the map used for characters that follow ~C-x~.
++ ‘help-map’ is for characters that follow ~C-h~.
++ ‘esc-map’ is for characters that follow ~<ESC>~.  Thus, all Meta characters
+  are actually defined in this map.
++ ‘ctl-x-4-map’ is for characters that follow ~C-x 4~.
++ ‘mode-specific-map’ is for characters that follow ~C-c~.
+
+**** Local Keymaps
+Major modes customize Emacs by providing their own key bindings in “local
+keymaps”.  Minor modes can also have local keymaps; whenever a minor mode is in
+effect, the definitions in its keymap override both the major mode’s local
+keymap and global keymap.  In addition, portions of text in the buffer can
+specify their own keymaps, which override all other keymap.
+
+Emacs handles a multi-event key sequence by looking in several keymaps, one by
+one, for a binding of the whole key sequence.  First it checks the minor mode
+keymaps for minor modes that are enabled, then it checks the major mode’s
+keymap, and then it checks the global keymap.
+
+**** Minibuffer Keymaps
+The minibuffer has its own set of local keymaps; they contain various completion
+and exit commands.
+
+**** Changing Key Bindings Interactively
+To redefine an Emacs key, change its entry in a keymap.  In this section, we
+describe how to rebind keys for the present Emacs session.
+
++ ~M-x global-set-key <RET> KEY CMD <RET>~ :: Define KEY globally to run CMD.
++ ~M-x local-set-key <RET> KEY CMD <RET>~ :: Define KEY locally (in the major
+  mode in effect) to run CMD.
++ ~M-x global-unset-key <RET> KEY~ :: Make KEY undefined in the global map.
++ ~M-x local-unset-key <RET> KEY~ :: Make KEY undefined locally (in the major
+  mode in effect).
+
+**** Rebinding Keys in the Init File
+In order to be available in every Emacs session, key bindings can be recorded in
+the Emacs initialization file.  There are several ways to write a key binding
+using Lisp.  The simplest is to use the ‘kbd’ function, which converts a textual
+representation of a key sequence into a form that can be pased as an argument to
+‘global-set-key’.  For example, here is how to bind ~C-z~ to the ‘shell’
+command:
+
+#+begin_src emacs-lisp
+  (global-set-key (kbd "C-z") 'shell)
+#+end_src
+
+Here’s how to format key bindings for use with the ‘kbd’ function:
+
+ + The special words ‘RET’, ‘SPC’, ‘TAB’, ‘DEL’, ‘LFD’, ‘ESC’ and ‘NUL’
+   represent special control characters.  The words must be written in
+   uppercase.
+  
+ + A word in angle brackets, e.g., <return>, <down>, or <f1>, represents a
+   function key.  (Note that in the standard configuration, the function key
+   <return> and the control key RET are synonymous.)  You can use angle brackets
+   on the words RET, SPC, etc., but they are not required there.
+  
+ + One or more prefixes, ~M~- (meta), ~C-~ (control), ~S-~ (shift), ~A-~ (alt),
+   ~H-~ (hyper), and ~s-~ (super) may precede a character or key notation.  For
+   function keys, the prefixes may go inside or outside of the brackets:
+   ~C-<down>~ is the same as ~<C-down>~.  The prefixes may be written in any
+   order: ~M-C-x~ is the same as ~C-M-x~.
+
+   Prefixes are not allowed on multi-key words, e.g., ~C-abc~, except that the
+   Meta prefix is allowed on a sequence of digits and optional minus sign:
+   ~M--123~ is the same as ~M-- M-1 M-2 M-3~.
+  
+ + The ~^~ notation for control characters also works: ~^M~ is the same as
+   ~C-m~.
+
+ + Double angle brackets enclose command names: <<next-line>> is shorthand for
+   ~M-x next-line RET~.
+
+ + Finally, REM or ~;;~ causes the rest of the line to be ignored as a comment.
+
+Here are some additional examples, including binding function keys and mouse
+events:
+
+#+begin_src emacs-lisp
+  (global-set-key (kbd "C-c y") 'clipboard-yank)
+  (global-set-key (kbd "C-M-q") 'query-replace)
+  (global-set-key (kbd "<f5>") 'flyspell-mode)
+  (global-set-key (kbd "C-<f5>") 'display-line-numbers-mode)
+  (global-set-key (kbd "C-<right>") 'forward-sentence)
+  (global-set-key (kbd "<mouse-2>") 'mouse-save-then-kill)
+#+end_src
+
+Instead of using ‘kbd’, one can use a Lisp string or vector to specify the key
+sequence.  For example, here is how to bind ~C-x M-l~ to make-symbolic-link:
+
+#+begin_src emacs-lisp
+  (global-set-key "\C-x\M-l" 'make-symbolic-link)
+#+end_src
+
+To bind a sequence including <TAB>, <RET>, <ESC>, or <DEL>, the string should
+contain the Emacs Lisp escape sequence ~\t~, ~\r~, ~\e~, or ~\d~, respectively.
+Here is an example which binds ~C-x <TAB>~ to ‘indent-rigidly’:
+
+#+begin_src emacs-lisp
+  (global-set-key "\C-x\t" 'indent-rigidly)
+#+end_src
+
+To change keymaps defined by major and minor modes, one must use the “mode
+hook”.  For example, Texinfo mode runs the hook ‘texinfo-mode-hook’; here is how
+one can use the hook to add local bindings for ~C-c n~ and ~C-c p~ in Texinfo
+mode:
+
+#+begin_src emacs-lisp
+  (add-hook 'texinfo-mode-hook
+            (lambda ()
+              (define-key texinfo-mode-map "\C-cp"
+                'backward-paragraph)
+              (define-key texinfo-mode-map "\C-cn"
+                'forward-paragraph)))
+#+end_src
 * Debugging
 * Conclusion
 * the-the
